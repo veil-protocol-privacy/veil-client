@@ -1,10 +1,13 @@
+#![no_main]
+sp1_zkvm::entrypoint!(main);
+
 use borsh::BorshDeserialize;
-use ed25519_dalek::{PublicKey, Signature};
-use risc0_zkvm::guest::env;
+use ed25519_dalek::{VerifyingKey, Signature};
 use solana_poseidon::{hashv, Endianness, Parameters};
 use types::Arguments;
 fn main() {
-    let args: Arguments = Arguments::deserialize_reader(&mut env::stdin()).unwrap();
+    let input = sp1_zkvm::io::read_vec();
+    let args: Arguments = Arguments::deserialize(&mut input.as_slice()).unwrap();
     let input_count = args.input_count as usize;
     let output_count = args.output_count as usize;
     
@@ -24,8 +27,8 @@ fn main() {
     message_data.extend(args.public_data.output_hashes.iter().map( |output_hash| output_hash.as_slice()));
 
     let message_hash = poseidon(message_data);
-    let pubkey = PublicKey::from_bytes(&args.private_data.pubkey).unwrap();
-    let signature = Signature::from_bytes(&args.private_data.signature).unwrap();
+    let pubkey = VerifyingKey::from_bytes(&args.private_data.pubkey.as_slice().try_into().unwrap()).unwrap();
+    let signature = Signature::from_bytes(&args.private_data.signature.as_slice().try_into().unwrap());
     
     let err = pubkey.verify_strict(&message_hash, &signature).err();
     if err.is_some() {

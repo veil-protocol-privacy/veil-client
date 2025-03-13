@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-borsh = "1.5.5"
+borsh = {version = "1.5.5", features = ["derive"]}
