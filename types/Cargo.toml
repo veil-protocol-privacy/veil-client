@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 borsh = {version = "1.5.5", features = ["derive"]}
+solana-poseidon = "2.2.2"

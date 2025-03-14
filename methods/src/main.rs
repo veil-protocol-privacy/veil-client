@@ -3,8 +3,8 @@ sp1_zkvm::entrypoint!(main);
 
 use borsh::BorshDeserialize;
 use ed25519_dalek::{VerifyingKey, Signature};
-use solana_poseidon::{hashv, Endianness, Parameters};
-use types::Arguments;
+use types::{Arguments, utils::poseidon};
+
 fn main() {
     let input = sp1_zkvm::io::read_vec();
     let args: Arguments = Arguments::deserialize(&mut input.as_slice()).unwrap();
@@ -96,10 +96,4 @@ fn merkle_proof_check(
     }
 
     assert_eq!(current_hash, root);
-}
-
-fn poseidon(
-    inputs: Vec<&[u8]>
-) -> Vec<u8> {
-    Vec::from(hashv(Parameters::Bn254X5, Endianness::BigEndian, inputs.iter().as_slice()).unwrap().to_bytes())
 }
