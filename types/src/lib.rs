@@ -1,6 +1,12 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 
-#[derive(Debug, BorshSerialize, BorshDeserialize, Clone, Hash)]
+pub mod utxo;
+pub mod utils;
+
+pub use utils::*;
+pub use utxo::*;
+
+#[derive(Debug, BorshSerialize, BorshDeserialize, Clone)]
 pub struct Arguments {
     pub public_data: PublicData,
     pub private_data: PrivateData,
@@ -9,7 +15,7 @@ pub struct Arguments {
     pub output_count: u64,
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize, Clone, Hash)]
+#[derive(Debug, BorshSerialize, BorshDeserialize, Clone)]
 pub struct PublicData {
     pub merkle_root: Vec<u8>,
     pub params_hash: Vec<u8>,
@@ -17,7 +23,7 @@ pub struct PublicData {
     pub output_hashes: Vec<Vec<u8>>,
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize, Clone, Hash)]
+#[derive(Debug, BorshSerialize, BorshDeserialize, Clone)]
 pub struct PrivateData {
     pub token_id: Vec<u8>,
     pub pubkey: Vec<u8>,
