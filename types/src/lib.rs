@@ -38,3 +38,12 @@ pub struct PrivateData {
     pub utxo_output_keys: Vec<Vec<u8>>,
     pub amount_out: Vec<u64>
 }
+
+#[derive(Debug, BorshSerialize, BorshDeserialize, Clone)]
+pub struct EncryptData {
+    pub master_pubkey: Vec<u8>,
+    pub random: Vec<u8>,
+    pub amount: u64,
+    pub token_id: Vec<u8>,
+    pub memo: String
+}

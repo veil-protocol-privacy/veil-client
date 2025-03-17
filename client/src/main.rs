@@ -27,7 +27,7 @@ fn main() {
     let random_2 = generate_random_bytes(32);
     let random_3 = generate_random_bytes(32);
 
-    let mut tree: CommitmentsAccount<16> = CommitmentsAccount::new(0);
+    let mut tree: CommitmentsAccount<32> = CommitmentsAccount::new(0);
 
     // Add some money to merkle tree
     let utxos_in = vec![
@@ -44,6 +44,7 @@ fn main() {
     let mut commitments: Vec<Vec<u8>> = utxos_in.iter().map(|utxo| utxo.utxo_hash()).collect();
     tree.insert_commitments(&mut commitments).unwrap();
 
+    
     // // Setup the prover client.
     // let client = ProverClient::from_env();
 
