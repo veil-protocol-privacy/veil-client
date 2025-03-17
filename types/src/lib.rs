@@ -2,9 +2,11 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 pub mod utxo;
 pub mod utils;
+pub mod curves;
 
 pub use utils::*;
 pub use utxo::*;
+pub use curves::*;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Clone)]
 pub struct Arguments {
