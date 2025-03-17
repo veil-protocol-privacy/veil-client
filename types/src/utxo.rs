@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use ed25519_dalek::{SigningKey, VerifyingKey, SECRET_KEY_LENGTH};
+use ed25519_dalek::{ed25519::signature::SignerMut, SigningKey, SECRET_KEY_LENGTH};
 
 use crate::poseidon;
 
@@ -69,7 +69,24 @@ impl UTXO {
         poseidon(vec![uxto_pubkey.as_slice(), token_id.as_slice(), amount.as_slice()])
     }
 
-    // sign
+    pub fn sign(
+        &self, 
+        merkle_root: Vec<u8>,
+        params_hash: Vec<u8>,
+        nullifiers: Vec<Vec<u8>>,
+        output_hashes: Vec<Vec<u8>>,
+    ) -> Vec<u8> {
+        let mut message_data: Vec<&[u8]> = vec![merkle_root.as_slice(), params_hash.as_slice()];
+        message_data.extend(nullifiers.iter().map( |nullifier| nullifier.as_slice()));
+        message_data.extend(output_hashes.iter().map( |output_hash| output_hash.as_slice()));
+
+        let message_hash = poseidon(message_data);
+        let mut secret_key = [0u8; SECRET_KEY_LENGTH];
+        secret_key.copy_from_slice(&self.viewing_key);
+        let mut signing_key: SigningKey = SigningKey::from_bytes(&secret_key);
+
+        signing_key.sign(&message_hash).to_bytes().to_vec()
+    }
     // encrypt
     // decrypt
 }
