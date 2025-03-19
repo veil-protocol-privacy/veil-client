@@ -1,7 +1,7 @@
 use rand::Rng;
 use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
-use merkle::CommitmentsAccount;
-use types::utxo::UTXO;
+use merkle::MerkleTreeSparse;
+use types::{utxo::UTXO, CipherText};
 
 pub mod merkle;
 
@@ -27,7 +27,7 @@ fn main() {
     let random_2 = generate_random_bytes(32);
     let random_3 = generate_random_bytes(32);
 
-    let mut tree: CommitmentsAccount<32> = CommitmentsAccount::new(0);
+    let mut tree: MerkleTreeSparse<32> = MerkleTreeSparse::new(0);
 
     // Add some money to merkle tree
     let utxos_in = vec![
@@ -41,9 +41,10 @@ fn main() {
         UTXO::new(spending_key_2.clone(), viewing_key_2.clone(), token_id.clone(), generate_random_bytes(32), 300, "UTXO 5".to_string()),
     ];
 
-    let mut commitments: Vec<Vec<u8>> = utxos_in.iter().map(|utxo| utxo.utxo_hash()).collect();
-    tree.insert_commitments(&mut commitments).unwrap();
+    let commitments: Vec<Vec<u8>> = utxos_in.iter().map(|utxo| utxo.utxo_hash()).collect();
+    tree.insert(commitments);
 
+    let ciphertexts: Vec<CipherText> = utxos_in.iter().map(|utxo| utxo.clone().encrypt(viewing_key_1.clone())).collect();
     
     // // Setup the prover client.
     // let client = ProverClient::from_env();

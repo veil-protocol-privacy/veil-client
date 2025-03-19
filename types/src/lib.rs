@@ -47,3 +47,20 @@ pub struct EncryptData {
     pub token_id: Vec<u8>,
     pub memo: String
 }
+
+#[derive(Debug, BorshSerialize, BorshDeserialize, Clone)]
+pub struct CipherText {
+    pub cipher: Vec<u8>,
+    pub blinded_sender_pubkey: Vec<u8>,
+    pub blinded_receiver_pubkey: Vec<u8>,
+}
+
+impl CipherText {
+    pub fn new(cipher: Vec<u8>, blinded_sender_pubkey: Vec<u8>, blinded_receiver_pubkey: Vec<u8>) -> Self {
+        Self {
+            cipher,
+            blinded_sender_pubkey,
+            blinded_receiver_pubkey,
+        }
+    }
+}

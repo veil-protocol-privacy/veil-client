@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use ed25519_dalek::{ed25519::signature::SignerMut, SigningKey, SECRET_KEY_LENGTH};
 use aes_gcm::{aead::Aead, aes::cipher::generic_array::typenum::U12, Aes256Gcm, Key, KeyInit, Nonce};
-use crate::{blind_keys, poseidon, share_key, EncryptData};
+use crate::{blind_keys, poseidon, share_key, CipherText, EncryptData};
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Clone)]
 pub struct UTXO {
@@ -91,7 +91,7 @@ impl UTXO {
     pub fn encrypt(
         self,
         sender_viewing_key: Vec<u8>,
-    ) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
+    ) -> CipherText {
         let mut sender_secret_key = [0u8; SECRET_KEY_LENGTH];
         sender_secret_key.copy_from_slice(&sender_viewing_key);
         let signing_key: SigningKey = SigningKey::from_bytes(&sender_secret_key);
@@ -107,7 +107,7 @@ impl UTXO {
         let cipher = Aes256Gcm::new(key);
         
         let mut random_bytes = [0u8; 12];
-        random_bytes.copy_from_slice(self.random.as_slice());
+        random_bytes.copy_from_slice(&self.random[..12]);
         let nonce = Nonce::<U12>::from_slice(&random_bytes);
 
         let encrypt_data = EncryptData {
@@ -121,7 +121,7 @@ impl UTXO {
         encrypt_data.serialize(&mut plain_text).unwrap();
 
         let ciphertext = cipher.encrypt(&nonce, plain_text.as_slice()).unwrap();
-        (ciphertext, blinded_sender_pubkey, blinded_receiver_pubkey)
+        CipherText::new(ciphertext, blinded_sender_pubkey, blinded_receiver_pubkey)
     }
     // decrypt
 }
