@@ -1,4 +1,5 @@
 use starknet_crypto::{Felt, poseidon_hash_many};
+use sha3::{Digest, Sha3_256};
 
 pub fn poseidon(
     inputs: Vec<&[u8]>
@@ -15,4 +16,16 @@ pub fn poseidon(
         Felt::from_bytes_be(&bytes)
     }).collect::<Vec<Felt>>();
     Vec::from(poseidon_hash_many(inputs.as_slice()).to_bytes_be())
+}
+
+pub fn keccak(
+    inputs: Vec<&[u8]>
+) -> Vec<u8> {
+    let mut hasher = Sha3_256::new();
+    for input in inputs {
+        hasher.update(input);
+    };
+
+    let result = hasher.finalize();
+    result.as_slice().to_vec()
 }
