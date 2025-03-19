@@ -153,12 +153,35 @@ mod tests{
         let key = Key::<Aes256Gcm>::from_slice(&encrypt_key);
         let cipher = Aes256Gcm::new(key);
         
-        let mut nonce_bytes = [0u8; 32];
+        let mut nonce_bytes = [0u8; 12];
         nonce_bytes.copy_from_slice(&random[..12]);
         let nonce = Nonce::<U12>::from_slice(&nonce_bytes);
 
         let ciphertext = cipher.encrypt(&nonce, data.as_bytes()).unwrap();
         CipherText::new(ciphertext, blinded_sender_pubkey, blinded_receiver_pubkey)
+    }
+
+    #[test]
+    fn test_share_keys() {
+        let sender_viewing_key: Vec<u8> = vec![38, 114, 103, 252, 36, 91, 2, 181, 87, 194, 26, 61, 225, 16, 23, 253, 224, 129, 71, 180, 18, 140, 156, 215, 1, 182, 243, 148, 162, 107, 157, 15];
+        let receiver_viewing_key: Vec<u8> = vec![56, 128, 221, 64, 109, 13, 11, 10, 68, 182, 229, 42, 241, 47, 83, 229, 46, 57, 8, 6, 145, 134, 209, 146, 77, 191, 236, 150, 69, 191, 127, 88];
+        let random: Vec<u8> = vec![241, 95, 58, 12, 20, 181, 228, 193, 223, 23, 114, 74, 198, 115, 246, 164, 79, 49, 62, 231, 56, 226, 48, 140, 219, 181, 23, 40, 246, 13, 132, 46];
+
+        let mut secret_key = [0u8; SECRET_KEY_LENGTH];
+        secret_key.copy_from_slice(&sender_viewing_key);
+        let signing_key: SigningKey = SigningKey::from_bytes(&secret_key);
+        let sender_viewing_pubkey = signing_key.verifying_key().as_bytes().to_vec();
+
+        let mut secret_key = [0u8; SECRET_KEY_LENGTH];
+        secret_key.copy_from_slice(&receiver_viewing_key);
+        let signing_key: SigningKey = SigningKey::from_bytes(&secret_key);
+        let receiver_viewing_pubkey = signing_key.verifying_key().as_bytes().to_vec();
+
+        let (blinded_sender_pubkey, blinded_receiver_pubkey) = blind_keys(sender_viewing_pubkey, receiver_viewing_pubkey, random.clone());
+        let sender_shared_key = share_key(sender_viewing_key, blinded_receiver_pubkey.clone());
+        let receiver_shared_key = share_key(receiver_viewing_key, blinded_sender_pubkey.clone());
+
+       assert_eq!(sender_shared_key, receiver_shared_key)
     }
 
     #[test]

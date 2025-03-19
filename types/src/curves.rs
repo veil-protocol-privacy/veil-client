@@ -35,7 +35,6 @@ pub fn share_key(
     head[0] &= 0b11111000;
     head[31] &= 0b01111111;
     head[31] |= 0b01000000;
-    head.reverse();
     
     let private_key_scalar = Scalar::from_bytes_mod_order(head);
 
