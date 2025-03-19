@@ -1,7 +1,7 @@
 use rand::Rng;
 use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
-use merkle::MerkleTreeSparse;
-use types::{utxo::UTXO, CipherText};
+use merkle::{MerkleProof, MerkleTreeSparse};
+use types::{keccak, poseidon, utxo::UTXO, Arguments, CipherText, PrivateData, PublicData};
 
 pub mod merkle;
 
@@ -22,13 +22,12 @@ fn main() {
     let viewing_key_1 = generate_random_bytes(32);
     let viewing_key_2 = generate_random_bytes(32);
 
-    let token_id = generate_random_bytes(32);
     let random_1 = generate_random_bytes(32);
     let random_2 = generate_random_bytes(32);
     let random_3 = generate_random_bytes(32);
-
+    
+    let token_id = generate_random_bytes(32);
     let nonce = generate_random_bytes(12);
-    println!("nonce: {:?}", nonce);
 
     let mut tree: MerkleTreeSparse<32> = MerkleTreeSparse::new(0);
 
@@ -45,35 +44,98 @@ fn main() {
     ];
 
     let commitments: Vec<Vec<u8>> = utxos_in.iter().map(|utxo| utxo.utxo_hash()).collect();
-    tree.insert(commitments);
+    tree.insert(commitments.clone());
 
+    let mut fake_commitments = vec![];
+    for i in 0..8 {
+        let hash_i = poseidon(vec![&[i]]);
+        fake_commitments.push(hash_i);
+    }
+    tree.insert(fake_commitments);
+
+    // TODO: hash params
+    let merkle_root = tree.root();
+    let params_hash = keccak(vec![&[100]]);
+
+    let merkle_paths: Vec<Vec<Vec<u8>>> = commitments.iter().map(| commitment | {
+        tree.generate_proof(commitment.clone()).path
+    }).collect();
+
+    let merkle_leaf_indices: Vec<u64> = commitments.iter().map(| commitment | {
+        tree.generate_proof(commitment.clone()).index as u64
+    }).collect();
+
+    let nullifiers: Vec<Vec<u8>> = utxos_in.iter().enumerate().map(| (i, utxo_in) | {
+        utxo_in.nullifier(merkle_leaf_indices[i])
+    }).collect();
+
+    let output_hashes: Vec<Vec<u8>> = utxos_out.iter().map(|utxo| utxo.utxo_hash()).collect();
+    
     let ciphertexts: Vec<CipherText> = utxos_in.iter().map(|utxo| utxo.clone().encrypt(viewing_key_1.clone())).collect();
     
-    // // Setup the prover client.
-    // let client = ProverClient::from_env();
+    let pubkey = utxos_in[0].spending_public_key();
+    let nullifying_key = utxos_in[0].nullifying_key();
+    let signature = utxos_in[0].sign(merkle_root.clone(), params_hash.clone(), nullifiers.clone(), output_hashes.clone());
+    let random_inputs = vec![random_1, random_2, random_3];
+    let amount_in: Vec<u64> = vec![200, 200, 200];
+    let amount_out: Vec<u64> = vec![300, 300];
+    let utxo_output_keys: Vec<Vec<u8>> = utxos_out.iter().map( | utxo | {
+        utxo.utxo_public_key()
+    }).collect();
 
-    // // Setup the inputs.
-    // let mut stdin = SP1Stdin::new();
+    let public_data = PublicData{
+        merkle_root,
+        params_hash,
+        nullifiers,
+        output_hashes
+    };
 
-    // // TODO: update inputs
-    // stdin.write(&1);
+    let private_data = PrivateData {
+        token_id,
+        pubkey,
+        signature,
+        random_inputs,
+        amount_in,
+        merkle_paths,
+        merkle_leaf_indices,
+        nullifying_key,
+        utxo_output_keys,
+        amount_out
+    };
+
+    let args = Arguments{
+        public_data,
+        private_data,
+        tree_depth: 16u64,
+        input_count: 3u64,
+        output_count: 2u64,
+    };
+    let serialized_args = borsh::to_vec(&args).unwrap();
+
+    // Setup the prover client.
+    let client = ProverClient::from_env();
+
+    // Setup the inputs.
+    let mut stdin = SP1Stdin::new();
+
+    stdin.write_vec(serialized_args);
 
 
-    // // Setup the program for proving.
-    // let (pk, vk) = client.setup(METHOD_ELF);
+    // Setup the program for proving.
+    let (pk, vk) = client.setup(METHOD_ELF);
 
-    // // Generate the proof
-    // let proof = client
-    //     .prove(&pk, &stdin)
-    //     .groth16()
-    //     .run()
-    //     .expect("failed to generate proof");
+    // Generate the proof
+    let proof = client
+        .prove(&pk, &stdin)
+        .groth16()
+        .run()
+        .expect("failed to generate proof");
 
-    // println!("Successfully generated proof!");
+    println!("Successfully generated proof!");
 
-    // // TODO: decypt vkey for program compatible
+    // TODO: decypt vkey for program compatible
     
-    // // Verify the proof.
-    // client.verify(&proof, &vk).expect("failed to verify proof");
-    // println!("Successfully verified proof!");
+    // Verify the proof.
+    client.verify(&proof, &vk).expect("failed to verify proof");
+    println!("Successfully verified proof!");
 }

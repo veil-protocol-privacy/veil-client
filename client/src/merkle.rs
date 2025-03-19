@@ -97,7 +97,7 @@ impl<const TREE_DEPTH: usize> MerkleTreeSparse<TREE_DEPTH> {
     }
 
     pub fn generate_proof(
-        self,
+        &self,
         element: Vec<u8>
     ) -> MerkleProof {
         let mut path: Vec<Vec<u8>> = Vec::with_capacity(TREE_DEPTH);

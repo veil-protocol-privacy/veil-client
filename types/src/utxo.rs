@@ -88,14 +88,14 @@ impl UTXO {
 
         let message_hash = poseidon(message_data);
         let mut secret_key = [0u8; SECRET_KEY_LENGTH];
-        secret_key.copy_from_slice(&self.viewing_key);
+        secret_key.copy_from_slice(&self.spending_key);
         let mut signing_key: SigningKey = SigningKey::from_bytes(&secret_key);
 
         signing_key.sign(&message_hash).to_bytes().to_vec()
     }
 
     pub fn encrypt(
-        self,
+        &self,
         sender_viewing_key: Vec<u8>,
     ) -> CipherText {
         let mut sender_secret_key = [0u8; SECRET_KEY_LENGTH];
@@ -118,16 +118,16 @@ impl UTXO {
 
         let encrypt_data = PlainText {
             master_pubkey: self.master_public_key(),
-            random: self.random,
-            amount: self.amount,
-            token_id: self.token_id,
-            memo: self.memo,
+            random: self.random.clone(),
+            amount: self.amount.clone(),
+            token_id: self.token_id.clone(),
+            memo: self.memo.clone(),
         };
         let mut plain_text = Vec::new();
         encrypt_data.serialize(&mut plain_text).unwrap();
 
         let ciphertext = cipher.encrypt(&nonce, plain_text.as_slice()).unwrap();
-        CipherText::new(ciphertext, self.nonce, blinded_sender_pubkey, blinded_receiver_pubkey)
+        CipherText::new(ciphertext, self.nonce.clone(), blinded_sender_pubkey, blinded_receiver_pubkey)
     }
 
     pub fn decrypt(

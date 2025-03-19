@@ -82,7 +82,7 @@ fn merkle_proof_check(
     let mut current_hash = leaf;
     let mut index = leaf_index;
 
-    assert!(path.len() == tree_depth as usize);
+    assert!(path.len() == (tree_depth-1) as usize);
 
     for sibling in path.iter() {
         let (left, right) = if index % 2 == 0 {
