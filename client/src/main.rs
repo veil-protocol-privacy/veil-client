@@ -27,18 +27,21 @@ fn main() {
     let random_2 = generate_random_bytes(32);
     let random_3 = generate_random_bytes(32);
 
+    let nonce = generate_random_bytes(12);
+    println!("nonce: {:?}", nonce);
+
     let mut tree: MerkleTreeSparse<32> = MerkleTreeSparse::new(0);
 
     // Add some money to merkle tree
     let utxos_in = vec![
-        UTXO::new(spending_key_1.clone(), viewing_key_1.clone(), token_id.clone(), random_1.clone(), 200, "UTXO 1".to_string()),
-        UTXO::new(spending_key_1.clone(), viewing_key_1.clone(), token_id.clone(), random_2.clone(), 200, "UTXO 2".to_string()),
-        UTXO::new(spending_key_1.clone(), viewing_key_1.clone(), token_id.clone(), random_3.clone(), 200, "UTXO 3".to_string()),
+        UTXO::new(spending_key_1.clone(), viewing_key_1.clone(), token_id.clone(), random_1.clone(), nonce.clone(), 200, "UTXO 1".to_string()),
+        UTXO::new(spending_key_1.clone(), viewing_key_1.clone(), token_id.clone(), random_2.clone(), nonce.clone(), 200, "UTXO 2".to_string()),
+        UTXO::new(spending_key_1.clone(), viewing_key_1.clone(), token_id.clone(), random_3.clone(), nonce.clone(), 200, "UTXO 3".to_string()),
     ];
 
     let utxos_out = vec![
-        UTXO::new(spending_key_1.clone(), viewing_key_1.clone(), token_id.clone(), generate_random_bytes(32), 300, "UTXO 4".to_string()),
-        UTXO::new(spending_key_2.clone(), viewing_key_2.clone(), token_id.clone(), generate_random_bytes(32), 300, "UTXO 5".to_string()),
+        UTXO::new(spending_key_1.clone(), viewing_key_1.clone(), token_id.clone(), generate_random_bytes(32), nonce.clone(), 300, "UTXO 4".to_string()),
+        UTXO::new(spending_key_2.clone(), viewing_key_2.clone(), token_id.clone(), generate_random_bytes(32), nonce.clone(), 300, "UTXO 5".to_string()),
     ];
 
     let commitments: Vec<Vec<u8>> = utxos_in.iter().map(|utxo| utxo.utxo_hash()).collect();
