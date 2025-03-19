@@ -126,3 +126,70 @@ impl UTXO {
     // decrypt
 }
 
+#[cfg(test)]
+mod tests{
+    use aes_gcm::aes::cipher::{self, generic_array::typenum::U32};
+
+    use super::*;
+
+    pub fn encrypt_aes(
+        sender_viewing_key: Vec<u8>,
+        receiver_viewing_public_key: Vec<u8>,
+        random: Vec<u8>,
+        data: String,
+
+    ) -> CipherText {
+        let mut sender_secret_key = [0u8; SECRET_KEY_LENGTH];
+        sender_secret_key.copy_from_slice(&sender_viewing_key);
+        let signing_key: SigningKey = SigningKey::from_bytes(&sender_secret_key);
+        let sender_viewing_pubkey = signing_key.verifying_key().as_bytes().to_vec();
+
+        let (blinded_sender_pubkey, blinded_receiver_pubkey) = blind_keys(sender_viewing_pubkey, receiver_viewing_public_key, random.clone());
+        let shared_key = share_key(sender_viewing_key, blinded_receiver_pubkey.clone());
+
+        // encrypt data
+        let mut encrypt_key: [u8; 32] = [0; 32];
+        encrypt_key.copy_from_slice(&shared_key);
+        let key = Key::<Aes256Gcm>::from_slice(&encrypt_key);
+        let cipher = Aes256Gcm::new(key);
+        
+        let mut nonce_bytes = [0u8; 32];
+        nonce_bytes.copy_from_slice(&random[..12]);
+        let nonce = Nonce::<U12>::from_slice(&nonce_bytes);
+
+        let ciphertext = cipher.encrypt(&nonce, data.as_bytes()).unwrap();
+        CipherText::new(ciphertext, blinded_sender_pubkey, blinded_receiver_pubkey)
+    }
+
+    #[test]
+    fn test_encrypt_decrypt_aes() {
+        let sender_viewing_key: Vec<u8> = vec![38, 114, 103, 252, 36, 91, 2, 181, 87, 194, 26, 61, 225, 16, 23, 253, 224, 129, 71, 180, 18, 140, 156, 215, 1, 182, 243, 148, 162, 107, 157, 15];
+        let receiver_viewing_key: Vec<u8> = vec![56, 128, 221, 64, 109, 13, 11, 10, 68, 182, 229, 42, 241, 47, 83, 229, 46, 57, 8, 6, 145, 134, 209, 146, 77, 191, 236, 150, 69, 191, 127, 88];
+        let random: Vec<u8> = vec![241, 95, 58, 12, 20, 181, 228, 193, 223, 23, 114, 74, 198, 115, 246, 164, 79, 49, 62, 231, 56, 226, 48, 140, 219, 181, 23, 40, 246, 13, 132, 46];
+
+        let mut secret_key = [0u8; SECRET_KEY_LENGTH];
+        secret_key.copy_from_slice(&receiver_viewing_key);
+        let signing_key: SigningKey = SigningKey::from_bytes(&secret_key);
+        let receiver_viewing_pubkey = signing_key.verifying_key().as_bytes().to_vec();
+
+        let cipher_text = encrypt_aes(sender_viewing_key, receiver_viewing_pubkey, random.clone(), String::from("test_encrypt"));
+
+        let shared_key = share_key(receiver_viewing_key, cipher_text.blinded_sender_pubkey);
+        
+        let mut encrypt_key: [u8; 32] = [0; 32];
+        encrypt_key.copy_from_slice(&shared_key);
+        let key = Key::<Aes256Gcm>::from_slice(&encrypt_key);
+        let cipher = Aes256Gcm::new(key);
+
+        let mut random_bytes = [0u8; 12];
+        random_bytes.copy_from_slice(&random[..12]);
+        let nonce = Nonce::<U12>::from_slice(&random_bytes);
+        let plain_text = match cipher.decrypt(nonce, cipher_text.cipher.as_slice()){
+            Ok(plain_text) => plain_text,
+            Err(err) => panic!("err: {:#?}", err),
+        };
+
+        let decrypt = std::str::from_utf8(&plain_text).unwrap();
+        assert_eq!(decrypt, "test_encrypt");
+    }
+}
