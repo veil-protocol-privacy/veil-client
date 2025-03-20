@@ -106,7 +106,7 @@ fn main() {
     let args = Arguments{
         public_data,
         private_data,
-        tree_depth: 16u64,
+        tree_depth: 32u64,
         input_count: 3u64,
         output_count: 2u64,
     };

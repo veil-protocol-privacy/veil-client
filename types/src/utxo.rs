@@ -51,14 +51,14 @@ impl UTXO {
 
     pub fn master_public_key(&self) -> Vec<u8> {
         let spending_key = self.spending_public_key();
-        let viewing_key = self.viewing_public_key();
-        poseidon(vec![spending_key.as_slice(), viewing_key.as_slice()])
+        let nullifying_key = self.nullifying_key();
+        poseidon(vec![spending_key.as_slice(), nullifying_key.as_slice()])
     }
 
     pub fn utxo_public_key(&self) -> Vec<u8> {
-        let spending_key = self.spending_public_key();
+        let master_pubkey = self.master_public_key();
 
-        poseidon(vec![spending_key.as_slice(), self.random.as_slice()])
+        poseidon(vec![master_pubkey.as_slice(), self.random.as_slice()])
     }
 
     pub fn nullifier(&self, leaf_index: u64) -> Vec<u8> {

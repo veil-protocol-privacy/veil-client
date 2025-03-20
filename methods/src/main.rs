@@ -3,7 +3,7 @@ sp1_zkvm::entrypoint!(main);
 
 use borsh::BorshDeserialize;
 use ed25519_dalek::{VerifyingKey, Signature};
-use types::{Arguments, utils::poseidon};
+use types::{Arguments, utils::{poseidon, hash_left_right}};
 
 fn main() {
     let input = sp1_zkvm::io::read_vec();
@@ -91,7 +91,7 @@ fn merkle_proof_check(
             (sibling.clone(), current_hash)
         };
 
-        current_hash = poseidon(vec![left.as_slice(), right.as_slice()]);
+        current_hash = hash_left_right(left, right);
         index /= 2;
     }
 
