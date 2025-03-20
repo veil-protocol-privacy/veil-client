@@ -3,7 +3,7 @@ sp1_zkvm::entrypoint!(main);
 
 use borsh::BorshDeserialize;
 use ed25519_dalek::{VerifyingKey, Signature};
-use types::{Arguments, utils::poseidon};
+use types::{Arguments, utils::{poseidon, hash_left_right}};
 
 fn main() {
     let input = sp1_zkvm::io::read_vec();
@@ -82,7 +82,7 @@ fn merkle_proof_check(
     let mut current_hash = leaf;
     let mut index = leaf_index;
 
-    assert!(path.len() == tree_depth as usize);
+    assert!(path.len() == (tree_depth-1) as usize);
 
     for sibling in path.iter() {
         let (left, right) = if index % 2 == 0 {
@@ -91,7 +91,7 @@ fn merkle_proof_check(
             (sibling.clone(), current_hash)
         };
 
-        current_hash = poseidon(vec![left.as_slice(), right.as_slice()]);
+        current_hash = hash_left_right(left, right);
         index /= 2;
     }
 

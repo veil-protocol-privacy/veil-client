@@ -1,17 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use primitive_types::U256;
-use starknet_crypto::{Felt, poseidon_hash};
-use std::collections::HashMap;
-
-fn hash_left_right(left: Vec<u8>, right: Vec<u8>) -> Vec<u8> {
-    let mut left_bytes = [0u8; 32];
-    left_bytes.copy_from_slice(&left);
-
-    let mut right_bytes = [0u8; 32];
-    right_bytes.copy_from_slice(&right);
-
-    Vec::from(poseidon_hash(Felt::from_bytes_be(&left_bytes), Felt::from_bytes_be(&right_bytes)).to_bytes_be())
-}
+use types::hash_left_right;
 
 // Merkle Tree Sparse for scan and find tree path
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
@@ -97,7 +86,7 @@ impl<const TREE_DEPTH: usize> MerkleTreeSparse<TREE_DEPTH> {
     }
 
     pub fn generate_proof(
-        self,
+        &self,
         element: Vec<u8>
     ) -> MerkleProof {
         let mut path: Vec<Vec<u8>> = Vec::with_capacity(TREE_DEPTH);
@@ -110,7 +99,7 @@ impl<const TREE_DEPTH: usize> MerkleTreeSparse<TREE_DEPTH> {
         let mut index = find.unwrap();
         for level in 0..TREE_DEPTH-1 {
             if index % 2 == 0 {
-                if self.tree[level].len() - 1 == index {
+                if self.tree[level].len() - 1 <= index {
                     path.push(self.zeros[level].clone());
                 } else {
                     path.push(self.tree[level][index+1].clone());
@@ -118,7 +107,6 @@ impl<const TREE_DEPTH: usize> MerkleTreeSparse<TREE_DEPTH> {
             } else {
                 path.push(self.tree[level][index-1].clone());
             }
-
             index = index / 2;
         }
 
@@ -253,4 +241,50 @@ mod tests {
         assert_eq!(proof.index, 5);
         assert_eq!(path, proof.path);
     }
+
+    #[test]
+    fn test_proof_check() {
+        const TREE_DEPTH: usize = 5;
+        let mut tree = MerkleTreeSparse::<TREE_DEPTH>::new(0);
+
+        let mut insert_list = vec![];
+        for i in 0..8{
+            let hash_i = poseidon(vec![&[i]]);
+            insert_list.push(hash_i);
+        }
+
+        tree.insert(insert_list);
+
+        let hash_5 = poseidon(vec![&[5]]);
+        let proof = tree.generate_proof(hash_5.clone());
+
+        merkle_proof_check(hash_5, proof.index, proof.root, proof.path, 5);
+    }
+
+    fn merkle_proof_check(
+        leaf: Vec<u8>,
+        leaf_index: u64,
+        root: Vec<u8>,
+        path: Vec<Vec<u8>>,
+        tree_depth: u64,
+    ) {
+        let mut current_hash = leaf;
+        let mut index = leaf_index;
+    
+        assert!(path.len() == (tree_depth-1) as usize);
+    
+        for sibling in path.iter() {
+            let (left, right) = if index % 2 == 0 {
+                (current_hash.clone(), sibling.clone())
+            } else {
+                (sibling.clone(), current_hash.clone())
+            };
+    
+            current_hash = hash_left_right(left, right);
+            index /= 2;
+        }
+    
+        assert_eq!(current_hash, root);
+    }
+    
 }
