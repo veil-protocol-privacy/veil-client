@@ -1,11 +1,11 @@
 use darksol::{PreCommitments, DepositRequest, TransferRequest, ShieldCipherText};
-use solana_sdk::program_error::ProgramError;
+use solana_sdk::{program_error::ProgramError, pubkey::Pubkey};
 use types::utxo::UTXO;
 
 use crate::libs::generate_random_bytes;
 
 pub fn create_deposit_instructions_data (
-    token_id: String,
+    token_id: &Pubkey,
     amount: u64,
     spending_key: Vec<u8>,
     viewing_key: Vec<u8>,
@@ -21,13 +21,16 @@ pub fn create_deposit_instructions_data (
         memo,
     );
 
-    let pre_commitment = PreCommitments::new(amount, utxo.utxo_public_key());
+    let pre_commitment = PreCommitments::new(amount, token_id, utxo.utxo_public_key());
+
+    let (_blinded_sender_pubkey, blinded_receiver_pubkey) = blind_keys(self.viewing_public_key(), self.viewing_public_key(), self.nonce.clone());
     let mut shield_cipher_text = ShieldCipherText::new(
-        utxo.master_public_key(),
+        blinded_receiver_pubkey,
     );
 
     // TODO: encrypted cipher text
-
+    let ciphertext = utxo.encrypt(utxo.viewing_key());
+    let value = vec![utxo.];
     shield_cipher_text.push_data(value);
     let request = DepositRequest::new(pre_commitment, shield_cipher_text);
     let instructions_data = borsh::to_vec(&request)?;

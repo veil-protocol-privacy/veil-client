@@ -3,13 +3,19 @@ mod libs;
 
 use crate::commands::tx::create_deposit_instructions_data;
 use clap::{Parser, Subcommand};
-use libs::{get_current_tree_number, get_key_from_file, get_deposit_account_metas};
+use libs::{get_current_tree_number, get_deposit_account_metas, get_key_from_file};
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
-    commitment_config::CommitmentConfig, instruction::{AccountMeta, Instruction}, message::Message, pubkey::Pubkey, signature::{read_keypair_file, Signer}, signer::keypair, transaction::Transaction
+    commitment_config::CommitmentConfig,
+    instruction::{AccountMeta, Instruction},
+    message::Message,
+    pubkey::Pubkey,
+    signature::{Signer, read_keypair_file},
+    signer::keypair,
+    transaction::Transaction,
 };
-use std::str::FromStr;
 use spl_associated_token_account::get_associated_token_address;
+use std::str::FromStr;
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -66,20 +72,13 @@ enum Commands {
         #[arg(short, long)]
         token_id: Option<String>,
 
-        /// depositor token address
-        /// if not provided then assume native solana
-        /// if token id is in the input then we assume
-        /// using ATA account
-        #[arg(short, long)]
-        depositor_token_address: Option<String>,
-
         /// transfer amount
         #[arg(short, long)]
         amount: u64,
 
-        /// recipient
+        /// receiver viewing public key
         #[arg(short, long)]
-        receiver: String,
+        receiver_viewing_public_key: String,
 
         /// memo
         #[arg(short, long)]
@@ -96,9 +95,23 @@ enum Commands {
 
     /// Withdraw fund to an account
     Withdraw {
+        /// token mint account
+        /// if not provided then assume native solana
+        #[arg(short, long)]
+        token_id: Option<String>,
+
         /// withdraw amount
         #[arg(short, long)]
         amount: u64,
+
+        /// receiver token account
+        /// if not provide then assume signer token account
+        #[arg(short, long)]
+        receiver_token_account: Option<String>,
+
+        /// file path to spending and viewing key
+        #[arg(short, long)]
+        svk_file_path: String,
 
         /// file path to keypair
         #[arg(short, long)]
@@ -121,13 +134,19 @@ fn main() {
             key_file_path,
         } => {
             let program_id = Pubkey::from_str(&cli.program_id).expect("Invalid program ID");
+            let mint_addr = Pubkey::from_str(&cli.token_id).expect("Invalid token mint address");
             // get user key from file
             let payer = read_keypair_file(&key_file_path).expect("Failed to load payer keypair");
             // get system generated spending and viewing key from file
             let (spending_key, viewing_key) = get_key_from_file(svk_file_path).unwrap();
 
-            let result =
-                create_deposit_instructions_data(token_id.clone(), amount, spending_key, viewing_key, memo);
+            let result = create_deposit_instructions_data(
+                &mint_addr,
+                amount,
+                spending_key,
+                viewing_key,
+                memo,
+            );
             let mut serialized_data: Vec<u8> = Vec::new();
 
             match result {
@@ -180,7 +199,14 @@ fn main() {
                 }
             }
 
-            let accounts = get_deposit_account_metas(url.clone(),  &payer.pubkey(), &token_mint_addr, &program_id, tree_number).unwrap();
+            let accounts = get_deposit_account_metas(
+                url.clone(),
+                &payer.pubkey(),
+                &token_mint_addr,
+                &program_id,
+                tree_number,
+            )
+            .unwrap();
 
             // Create instruction
             let instruction = Instruction {
@@ -202,10 +228,9 @@ fn main() {
         }
 
         Commands::Transfer {
-            depositor_token_address,
             token_id,
-            receiver,
             amount,
+            receiver_viewing_public_key,
             memo,
             svk_file_path,
             key_file_path,

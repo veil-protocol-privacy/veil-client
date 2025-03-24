@@ -27,6 +27,10 @@ impl UTXO {
         }
     }
 
+    pub fn viewing_key(&self) -> Vec<u8> {
+        self.viewing_key.clone()
+    }
+
     pub fn nonce(&self) -> Vec<u8> {
         self.nonce.clone()
     }
