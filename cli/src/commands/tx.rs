@@ -25,7 +25,7 @@ pub fn create_deposit_instructions_data(
     let pre_commitment = PreCommitments::new(amount, token_id.to_string(), utxo.utxo_public_key());
     let deposit_ciphertext = utxo.encrypt_for_deposit(viewing_key.clone(), deposit_key.clone());
 
-    let shield_cipher_text = ShieldCipherText::new(deposit_ciphertext.shield_key, deposit_ciphertext.cipher);
+    let shield_cipher_text = ShieldCipherText::new(deposit_ciphertext.shield_key, deposit_ciphertext.cipher, utxo.nonce());
 
     let request = DepositRequest::new(pre_commitment, shield_cipher_text);
     let instructions_data = borsh::to_vec(&request)?;
