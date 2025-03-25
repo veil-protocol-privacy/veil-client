@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Subcommand;
-use solana_sdk::signature::Keypair;
+use solana_sdk::{signature::Keypair, signer::Signer};
 
 use crate::{
     config::CliConfig,
@@ -12,7 +12,7 @@ use crate::{
 #[derive(Clone, Subcommand)]
 pub enum KeyCommand {
     Create { name: String },
-    Load { name: String },
+    Show { name: String },
     List,
 }
 
@@ -22,7 +22,7 @@ pub fn handle_command(command: KeyCommand, config_path: Option<PathBuf>) -> Resu
 
     match command {
         KeyCommand::Create { name } => create(key_storage, name),
-        KeyCommand::Load { name } => load(key_storage, name),
+        KeyCommand::Show { name } => show(key_storage, name),
         KeyCommand::List => list(key_storage),
     }
 }
@@ -42,8 +42,8 @@ fn create<T: KeyStorage>(storage: T, name: String) -> Result<()> {
     Ok(())
 }
 
-fn load<T: KeyStorage>(storage: T, name: String) -> Result<()> {
+fn show<T: KeyStorage>(storage: T, name: String) -> Result<()> {
     let keypair = storage.load_keypair(&name)?;
-    println!("Loaded key {}: {:?}", name, keypair);
+    println!("Loaded key {}: {:?}", name, keypair.pubkey());
     Ok(())
 }
