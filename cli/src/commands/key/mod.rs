@@ -1,27 +1,38 @@
 pub mod storage;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use clap::Subcommand;
+use clap::{Subcommand, builder::Str};
 use solana_sdk::{signature::Keypair, signer::Signer};
 use storage::{KeyStorage, KeyStorageType, raw::RawKeyStorage};
 
 #[derive(Clone, Subcommand)]
 pub enum KeyCommand {
-    Create { name: String },
-    Show { name: String },
+    Create {
+        #[clap(short, long)]
+        name: Option<String>,
+    },
+    Show {
+        #[clap(short, long)]
+        name: Option<String>,
+    },
     List,
 }
 
 pub struct KeyConfig {
     path: PathBuf,
     storage: KeyStorageType,
+    name: String,
 }
 
 impl KeyConfig {
-    pub fn new(path: PathBuf, storage: KeyStorageType) -> Self {
-        Self { storage, path }
+    pub fn new(path: PathBuf, storage: KeyStorageType, name: String) -> Self {
+        Self {
+            storage,
+            path,
+            name,
+        }
     }
 }
 
@@ -32,8 +43,15 @@ pub fn handle_command(command: KeyCommand, config: KeyConfig) -> Result<()> {
     };
 
     match command {
-        KeyCommand::Create { name } => create(key_storage, name),
-        KeyCommand::Show { name } => show(key_storage, name),
+        KeyCommand::Create { name } => {
+            let key_name = name.unwrap_or_else(|| config.name);
+
+            create(key_storage, key_name)
+        }
+        KeyCommand::Show { name } => {
+            let key_name = name.unwrap_or_else(|| config.name);
+            show(key_storage, key_name)
+        }
         KeyCommand::List => list(key_storage),
     }
 }

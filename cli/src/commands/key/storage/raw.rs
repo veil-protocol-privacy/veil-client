@@ -27,6 +27,12 @@ impl KeyStorage for RawKeyStorage {
         let raw_path = self.path.join("raw");
         fs::create_dir_all(&raw_path)?;
         let key_path = raw_path.join(format!("{}.json", name));
+
+        if key_path.exists() {
+            println!("Key '{}' already exists at {:?}", name, key_path);
+            return Ok(());
+        }
+
         let stored = StoredKeypair {
             secret: keypair.to_bytes().to_vec(),
         };

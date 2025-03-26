@@ -1,3 +1,4 @@
+use crate::commands::key::storage::KeyStorageType;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -6,6 +7,7 @@ use std::{default, fs};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CliConfig {
     pub key_path: String,
+    pub key_storage: KeyStorageType,
     pub key: String,
 }
 
@@ -58,6 +60,7 @@ impl Default for CliConfig {
                 .join("veil/keys")
                 .to_string_lossy()
                 .into_owned(),
+            key_storage: KeyStorageType::Raw,
             key: "id".to_string(),
         }
     }

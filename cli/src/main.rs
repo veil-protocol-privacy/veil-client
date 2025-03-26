@@ -127,8 +127,8 @@ enum Commands {
         #[command(subcommand)]
         command: KeyCommand,
 
-        #[arg(short, long, default_value = "raw")]
-        storage: KeyStorageType,
+        #[arg(short, long)]
+        storage: Option<KeyStorageType>,
     },
 }
 
@@ -136,6 +136,8 @@ fn main() {
     let cli = Cli::parse();
     let url = &cli.rpc_url;
     let rpc_client = RpcClient::new_with_commitment(url.clone(), CommitmentConfig::confirmed());
+
+    let config = CliConfig::load_or_create(cli.config).unwrap();
 
     match cli.command {
         Commands::Deposit {
@@ -317,8 +319,11 @@ fn main() {
             println!("✅ Transaction successful! Signature: {}", signature);
         }
         Commands::Key { command, storage } => {
-            let config = CliConfig::load_or_create(cli.config).unwrap();
-            let key_config = KeyConfig::new(config.key_path.into(), storage);
+            let key_config = KeyConfig::new(
+                PathBuf::from(config.key_path),
+                storage.unwrap_or(config.key_storage),
+                config.key,
+            );
             key::handle_command(command, key_config).unwrap()
         }
     }
