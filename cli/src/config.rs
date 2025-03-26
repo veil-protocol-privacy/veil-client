@@ -58,7 +58,7 @@ impl Default for CliConfig {
                 .join("veil/keys")
                 .to_string_lossy()
                 .into_owned(),
-            key: "id.json".to_string(),
+            key: "id".to_string(),
         }
     }
 }

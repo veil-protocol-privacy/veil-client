@@ -1,13 +1,11 @@
+pub mod storage;
+
 use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Subcommand;
 use solana_sdk::{signature::Keypair, signer::Signer};
-
-use crate::{
-    config::CliConfig,
-    storage::{self, KeyStorage, file::FileKeyStorage},
-};
+use storage::{KeyStorage, KeyStorageType, raw::RawKeyStorage};
 
 #[derive(Clone, Subcommand)]
 pub enum KeyCommand {
@@ -16,9 +14,22 @@ pub enum KeyCommand {
     List,
 }
 
-pub fn handle_command(command: KeyCommand, config_path: Option<PathBuf>) -> Result<()> {
-    let config = CliConfig::load_or_create(config_path)?;
-    let key_storage = FileKeyStorage::new(config.key_path.into());
+pub struct KeyConfig {
+    path: PathBuf,
+    storage: KeyStorageType,
+}
+
+impl KeyConfig {
+    pub fn new(path: PathBuf, storage: KeyStorageType) -> Self {
+        Self { storage, path }
+    }
+}
+
+pub fn handle_command(command: KeyCommand, config: KeyConfig) -> Result<()> {
+    let key_storage = match config.storage {
+        KeyStorageType::Raw => RawKeyStorage::new(config.path),
+        KeyStorageType::Encrypted => unimplemented!(),
+    };
 
     match command {
         KeyCommand::Create { name } => create(key_storage, name),

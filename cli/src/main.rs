@@ -1,11 +1,11 @@
 mod commands;
 mod config;
 mod libs;
-mod storage;
 
 // use crate::commands::tx::create_deposit_instructions_data;
 use clap::{Parser, Subcommand, command};
-use commands::key::{self, KeyCommand};
+use commands::key::{self, KeyCommand, KeyConfig, storage::KeyStorageType};
+use config::CliConfig;
 use libs::{get_current_tree_number, get_deposit_account_metas, get_key_from_file};
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
@@ -126,6 +126,9 @@ enum Commands {
     Key {
         #[command(subcommand)]
         command: KeyCommand,
+
+        #[arg(short, long, default_value = "raw")]
+        storage: KeyStorageType,
     },
 }
 
@@ -313,6 +316,10 @@ fn main() {
                 .unwrap();
             println!("✅ Transaction successful! Signature: {}", signature);
         }
-        Commands::Key { command } => key::handle_command(command, cli.config).unwrap(),
+        Commands::Key { command, storage } => {
+            let config = CliConfig::load_or_create(cli.config).unwrap();
+            let key_config = KeyConfig::new(config.key_path.into(), storage);
+            key::handle_command(command, key_config).unwrap()
+        }
     }
 }
