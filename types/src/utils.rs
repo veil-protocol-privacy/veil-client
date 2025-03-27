@@ -40,3 +40,12 @@ pub fn keccak(
     let result = hasher.finalize();
     result.as_slice().to_vec()
 }
+
+pub fn generate_nullifier(
+    viewing_key: Vec<u8>,
+    leaf_index: u64,
+) -> Vec<u8> {
+    let nullifying_key = poseidon(vec![viewing_key.as_slice()]);
+    let leaf_index_bytes = leaf_index.to_le_bytes().to_vec();
+    poseidon(vec![nullifying_key.as_slice(), leaf_index_bytes.as_slice()])
+}

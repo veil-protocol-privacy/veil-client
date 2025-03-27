@@ -1,9 +1,11 @@
 mod commands;
 mod libs;
+mod utils;
 
 use crate::commands::tx::create_deposit_instructions_data;
 use clap::{Parser, Subcommand};
-use libs::{get_current_tree_number, get_deposit_account_metas, get_key_from_file};
+use commands::tx::create_transfer_instructions_data;
+use utils::{get_current_tree_number, get_deposit_account_metas, get_key_from_file};
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
     commitment_config::CommitmentConfig,
@@ -71,17 +73,17 @@ enum Commands {
         #[arg(short, long)]
         token_id: Option<String>,
 
-        /// transfer amount
-        #[arg(short, long)]
-        amount: u64,
-
         /// receiver viewing public key
         #[arg(short, long)]
         receiver_viewing_public_key: String,
 
-        /// memo
+        /// file path to zk proof
         #[arg(short, long)]
-        memo: String,
+        proof_file_path: String,
+
+        /// file path to json file contains all the inputs and outputs
+        #[arg(short, long)]
+        json_file_path: String,
 
         /// file path to spending and viewing key
         #[arg(short, long)]
@@ -143,6 +145,8 @@ fn main() {
                     return;
                 }
             };
+             // get user key from file
+             let payer = read_keypair_file(&key_file_path).expect("Failed to load payer keypair");
 
             let token_mint_addr_str = token_id.unwrap_or("So11111111111111111111111111111111111111112".to_string()); // if not provide then assume native sol, use wrapped sol mint account
             let token_mint_addr = match Pubkey::from_str(&token_mint_addr_str) {
@@ -155,22 +159,40 @@ fn main() {
 
                     return;
                 }
-            };            
+            };  
+
+            // if not provided depositor token address will be 
+            // an associated token address
+            let depositor_token_addr: Pubkey;
+            if depositor_token_address.is_none() {
+                let token_mint_addr_str = depositor_token_address.unwrap(); 
+                depositor_token_addr = match Pubkey::from_str(&token_mint_addr_str) {
+                    Ok(pk) => pk,
+                    Err(err) => {
+                        println!(
+                            "{}",
+                            format!("invalid token mint address: {}", err.to_string())
+                        );
+    
+                        return;
+                    }
+                };                     
+            } else {
+                depositor_token_addr = get_associated_token_address(&payer.pubkey(), &token_mint_addr);
+            }
             
-            // get user key from file
-            let payer = read_keypair_file(&key_file_path).expect("Failed to load payer keypair");
+            
             // get system generated spending and viewing key from file
             let (spending_key, viewing_key, deposit_key) = get_key_from_file(svk_file_path).unwrap();
 
-            let result = create_deposit_instructions_data(
+            let serialized_data = match create_deposit_instructions_data(
                 &token_mint_addr,
                 amount,
                 spending_key,
                 viewing_key,
                 deposit_key,
                 memo,
-            );
-            let serialized_data: Vec<u8> = match result {
+            ) {
                 Ok(data) => data,
                 Err(err) => {
                     println!(
@@ -209,6 +231,7 @@ fn main() {
             let accounts = get_deposit_account_metas(
                 url.clone(),
                 &payer.pubkey(),
+                &depositor_token_addr,
                 &token_mint_addr,
                 &program_id,
                 tree_number,
@@ -236,11 +259,11 @@ fn main() {
 
         Commands::Transfer {
             token_id,
-            amount,
             receiver_viewing_public_key,
-            memo,
             svk_file_path,
             key_file_path,
+            json_file_path,
+            proof_file_path,
         } => {
             let program_id = match Pubkey::from_str(&cli.program_id) {
                 Ok(pk) => pk,
@@ -269,7 +292,36 @@ fn main() {
             // get user key from file
             let payer = read_keypair_file(&key_file_path).expect("Failed to load payer keypair");
             // get system generated spending and viewing key from file
-            let (spending_key, viewing_key, deposit_key) = get_key_from_file(svk_file_path).unwrap();
+            let (spending_key, viewing_key, _deposit_key) = get_key_from_file(svk_file_path).unwrap();
+
+            // let serialized_data = match create_transfer_instructions_data(
+            //     &token_mint_addr,
+            //     receiver_viewing_public_key.as_bytes().to_vec(),
+            //     spending_key,
+            //     viewing_key,
+            //     deposit_key,
+            //     memo,
+            //     ,
+            //     ,
+                
+            // ) {
+            //     Ok(data) => data,
+            //     Err(err) => {
+            //         println!(
+            //             "{}",
+            //             format!("failed to create instruction data: {}", err.to_string())
+            //         );
+
+            //         return;
+            //     }
+            // };
+
+            // // Create instruction
+            // let instruction = Instruction {
+            //     program_id,
+            //     accounts,
+            //     data: serialized_data,
+            // };
 
             let message = Message::new(&[], Some(&payer.pubkey()));
             let mut transaction = Transaction::new_unsigned(message);
