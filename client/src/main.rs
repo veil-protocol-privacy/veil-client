@@ -32,7 +32,7 @@ fn main() {
     let mut tree: MerkleTreeSparse<32> = MerkleTreeSparse::new(0);
 
     // Add some money to merkle tree
-    let utxos_in = vec![
+    let utxos_in: Vec<UTXO> = vec![
         UTXO::new(spending_key_1.clone(), viewing_key_1.clone(), token_id.clone(), random_1.clone(), nonce.clone(), 200, "UTXO 1".to_string()),
         UTXO::new(spending_key_1.clone(), viewing_key_1.clone(), token_id.clone(), random_2.clone(), nonce.clone(), 200, "UTXO 2".to_string()),
         UTXO::new(spending_key_1.clone(), viewing_key_1.clone(), token_id.clone(), random_3.clone(), nonce.clone(), 200, "UTXO 3".to_string()),

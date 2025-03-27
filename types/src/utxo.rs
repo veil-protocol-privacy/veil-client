@@ -6,7 +6,8 @@ use aes_gcm::{
     aead::Aead, aes::cipher::generic_array::typenum::U12, Aes256Gcm, Key, KeyInit, Nonce,
 };
 use borsh::{BorshDeserialize, BorshSerialize};
-use ed25519_dalek::{ed25519::signature::SignerMut, SigningKey, SECRET_KEY_LENGTH};
+use ed25519_consensus::SigningKey;
+use ed25519_dalek::SECRET_KEY_LENGTH;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Clone)]
 pub struct UTXO {
@@ -55,15 +56,15 @@ impl UTXO {
     pub fn spending_public_key(&self) -> Vec<u8> {
         let mut secret_key = [0u8; SECRET_KEY_LENGTH];
         secret_key.copy_from_slice(&self.spending_key);
-        let signing_key: SigningKey = SigningKey::from_bytes(&secret_key);
-        signing_key.verifying_key().as_bytes().to_vec()
+        let signing_key: SigningKey = SigningKey::try_from(secret_key).unwrap();
+        signing_key.verification_key().as_bytes().to_vec()
     }
 
     pub fn viewing_public_key(&self) -> Vec<u8> {
         let mut secret_key = [0u8; SECRET_KEY_LENGTH];
         secret_key.copy_from_slice(&self.viewing_key);
-        let signing_key: SigningKey = SigningKey::from_bytes(&secret_key);
-        signing_key.verifying_key().as_bytes().to_vec()
+        let signing_key: SigningKey = SigningKey::try_from(secret_key).unwrap();
+        signing_key.verification_key().as_bytes().to_vec()
     }
 
     pub fn master_public_key(&self) -> Vec<u8> {
@@ -114,7 +115,7 @@ impl UTXO {
         let message_hash = poseidon(message_data);
         let mut secret_key = [0u8; SECRET_KEY_LENGTH];
         secret_key.copy_from_slice(&self.spending_key);
-        let mut signing_key: SigningKey = SigningKey::from_bytes(&secret_key);
+        let mut signing_key: SigningKey = SigningKey::try_from(secret_key).unwrap();
 
         signing_key.sign(&message_hash).to_bytes().to_vec()
     }
@@ -122,8 +123,8 @@ impl UTXO {
     pub fn encrypt(&self, sender_viewing_key: Vec<u8>) -> CipherText {
         let mut sender_secret_key = [0u8; SECRET_KEY_LENGTH];
         sender_secret_key.copy_from_slice(&sender_viewing_key);
-        let signing_key: SigningKey = SigningKey::from_bytes(&sender_secret_key);
-        let sender_viewing_pubkey = signing_key.verifying_key().as_bytes().to_vec();
+        let signing_key: SigningKey = SigningKey::try_from(sender_secret_key).unwrap();
+        let sender_viewing_pubkey = signing_key.verification_key().as_bytes().to_vec();
 
         let (blinded_sender_pubkey, blinded_receiver_pubkey) = blind_keys(
             sender_viewing_pubkey,
@@ -245,8 +246,8 @@ impl UTXO {
 
         let mut sender_deposit_secret_key = [0u8; SECRET_KEY_LENGTH];
         sender_deposit_secret_key.copy_from_slice(&deposit_priv_key);
-        let signing_key: SigningKey = SigningKey::from_bytes(&sender_deposit_secret_key);
-        let deposit_pubkey = signing_key.verifying_key().as_bytes().to_vec();
+        let signing_key: SigningKey = SigningKey::try_from(sender_deposit_secret_key).unwrap();
+        let deposit_pubkey = signing_key.verification_key().as_bytes().to_vec();
 
         DepositCiphertext::new(serialize_data, self.nonce.clone(), deposit_pubkey)
     }
@@ -283,7 +284,15 @@ impl UTXO {
             Err(err) => panic!("failed to decrypt random: {}", err),
         };
 
-        UTXO::new(spending_key, viewing_key.clone(), token_id, random, ciphertext.nonce, amount, "".to_owned())
+        UTXO::new(
+            spending_key,
+            viewing_key.clone(),
+            token_id,
+            random,
+            ciphertext.nonce,
+            amount,
+            "".to_owned(),
+        )
     }
 }
 
@@ -299,8 +308,8 @@ mod tests {
     ) -> CipherText {
         let mut sender_secret_key = [0u8; SECRET_KEY_LENGTH];
         sender_secret_key.copy_from_slice(&sender_viewing_key);
-        let signing_key: SigningKey = SigningKey::from_bytes(&sender_secret_key);
-        let sender_viewing_pubkey = signing_key.verifying_key().as_bytes().to_vec();
+        let signing_key: SigningKey = SigningKey::try_from(sender_secret_key).unwrap();
+        let sender_viewing_pubkey = signing_key.verification_key().as_bytes().to_vec();
 
         let (blinded_sender_pubkey, blinded_receiver_pubkey) = blind_keys(
             sender_viewing_pubkey,
@@ -346,13 +355,13 @@ mod tests {
 
         let mut secret_key = [0u8; SECRET_KEY_LENGTH];
         secret_key.copy_from_slice(&sender_viewing_key);
-        let signing_key: SigningKey = SigningKey::from_bytes(&secret_key);
-        let sender_viewing_pubkey = signing_key.verifying_key().as_bytes().to_vec();
+        let signing_key: SigningKey = SigningKey::try_from(secret_key).unwrap();
+        let sender_viewing_pubkey = signing_key.verification_key().as_bytes().to_vec();
 
         let mut secret_key = [0u8; SECRET_KEY_LENGTH];
         secret_key.copy_from_slice(&receiver_viewing_key);
-        let signing_key: SigningKey = SigningKey::from_bytes(&secret_key);
-        let receiver_viewing_pubkey = signing_key.verifying_key().as_bytes().to_vec();
+        let signing_key: SigningKey = SigningKey::try_from(secret_key).unwrap();
+        let receiver_viewing_pubkey = signing_key.verification_key().as_bytes().to_vec();
 
         let (blinded_sender_pubkey, blinded_receiver_pubkey) = blind_keys(
             sender_viewing_pubkey,
@@ -383,8 +392,8 @@ mod tests {
 
         let mut secret_key = [0u8; SECRET_KEY_LENGTH];
         secret_key.copy_from_slice(&receiver_viewing_key);
-        let signing_key: SigningKey = SigningKey::from_bytes(&secret_key);
-        let receiver_viewing_pubkey = signing_key.verifying_key().as_bytes().to_vec();
+        let signing_key: SigningKey = SigningKey::try_from(secret_key).unwrap();
+        let receiver_viewing_pubkey = signing_key.verification_key().as_bytes().to_vec();
 
         let cipher_text = encrypt_aes(
             sender_viewing_key,
