@@ -87,7 +87,7 @@ impl UTXO {
     pub fn utxo_hash(&self) -> Vec<u8> {
         let uxto_pubkey = self.utxo_public_key();
         let token_id = self.token_id.clone();
-        let amount = self.amount.to_le_bytes().to_vec();
+        let amount: Vec<u8> = self.amount.to_le_bytes().to_vec();
 
         poseidon(vec![
             uxto_pubkey.as_slice(),
@@ -283,7 +283,7 @@ impl UTXO {
             Err(err) => panic!("failed to decrypt random: {}", err),
         };
 
-        UTXO::new(spending_key, viewing_key.clone(), token_id, random, ciphertext.nonce, amount, "".to_owned())
+        UTXO::new(spending_key, viewing_key.clone(), token_id, random, ciphertext.nonce, amount, "".to_string())
     }
 }
 
