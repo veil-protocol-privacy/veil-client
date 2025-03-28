@@ -1,1 +1,4 @@
-pub(crate) mod tx;
+pub mod indexer;
+pub mod key;
+pub mod proof;
+pub mod tx;

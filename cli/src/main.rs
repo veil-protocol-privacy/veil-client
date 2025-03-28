@@ -2,9 +2,19 @@ mod commands;
 mod libs;
 mod utils;
 
-use crate::commands::tx::create_deposit_instructions_data;
-use clap::{Parser, Subcommand};
 use commands::tx::{create_transfer_instructions_data, create_withdraw_instructions_data};
+use clap::{Parser, Subcommand, command};
+use cli::{
+    commands::{
+        indexer,
+        key::{self, KeyCommand, KeyConfig},
+        proof::{self, ProofCommand},
+        tx::create_deposit_instructions_data,
+    },
+    config::CliConfig,
+    storage::KeyStorageType,
+    utils::{get_current_tree_number, get_deposit_account_metas, get_key_from_file},
+};
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
     commitment_config::CommitmentConfig,
@@ -15,10 +25,10 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use spl_associated_token_account::get_associated_token_address;
-use std::str::FromStr;
 use utils::{
     get_current_tree_number, get_deposit_account_metas, get_key_from_file, get_proof_from_file, get_transfer_account_metas, get_withdraw_account_metas, read_json_file
 };
+use std::{path::PathBuf, str::FromStr};
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -32,6 +42,9 @@ struct Cli {
     /// program id
     #[arg(short, long)]
     program_id: String,
+
+    #[clap(short, long)]
+    config: Option<PathBuf>,
 
     #[command(subcommand)]
     command: Commands,
@@ -136,12 +149,29 @@ enum Commands {
         #[arg(short, long)]
         key_file_path: String,
     },
+
+    Key {
+        #[command(subcommand)]
+        command: KeyCommand,
+
+        #[arg(short, long)]
+        storage: Option<KeyStorageType>,
+    },
+
+    Proof {
+        #[command(subcommand)]
+        command: ProofCommand,
+    },
+
+    Indexer {},
 }
 
 fn main() {
     let cli = Cli::parse();
     let url = &cli.rpc_url;
     let rpc_client = RpcClient::new_with_commitment(url.clone(), CommitmentConfig::confirmed());
+
+    let config = CliConfig::load_or_create(cli.config).unwrap();
 
     match cli.command {
         Commands::Deposit {
@@ -234,16 +264,16 @@ fn main() {
                 }
             };
 
-            // get all necessary account meta
-            // funding_account
-            // user_wallet
-            // user_token_account
-            // pda_token_account
-            // mint_account
-            // commitments_account
-            // commitments_manager_account
-            // token_program
-            // system_program
+            // // get all necessary account meta
+            // // funding_account
+            // // user_wallet
+            // // user_token_account
+            // // pda_token_account
+            // // mint_account
+            // // commitments_account
+            // // commitments_manager_account
+            // // token_program
+            // // system_program
 
             let accounts = get_deposit_account_metas(
                 url.clone(),
@@ -255,25 +285,24 @@ fn main() {
             )
             .unwrap();
 
-            // Create instruction
-            let instruction = Instruction {
-                program_id,
-                accounts,
-                data: serialized_data,
-            };
+            // // Create instruction
+            // let instruction = Instruction {
+            //     program_id,
+            //     accounts,
+            //     data: serialized_data,
+            // };
 
-            let message = Message::new(&[instruction], Some(&payer.pubkey()));
-            let mut transaction = Transaction::new_unsigned(message);
+            // let message = Message::new(&[instruction], Some(&payer.pubkey()));
+            // let mut transaction = Transaction::new_unsigned(message);
 
-            let recent_blockhash = rpc_client.get_latest_blockhash().unwrap();
-            transaction.sign(&[&payer], recent_blockhash);
+            // let recent_blockhash = rpc_client.get_latest_blockhash().unwrap();
+            // transaction.sign(&[&payer], recent_blockhash);
 
-            let signature = rpc_client
-                .send_and_confirm_transaction(&transaction)
-                .unwrap();
-            println!("✅ Transaction successful! Signature: {}", signature);
+            // let signature = rpc_client
+            //     .send_and_confirm_transaction(&transaction)
+            //     .unwrap();
+            // println!("✅ Transaction successful! Signature: {}", signature);
         }
-
         Commands::Transfer {
             token_id,
             receiver_viewing_public_key,
@@ -381,7 +410,6 @@ fn main() {
                 .unwrap();
             println!("✅ Transaction successful! Signature: {}", signature);
         }
-
         Commands::Withdraw {
             amount,
             key_file_path,
@@ -517,6 +545,22 @@ fn main() {
                 .send_and_confirm_transaction(&transaction)
                 .unwrap();
             println!("✅ Transaction successful! Signature: {}", signature);
+        }
+        Commands::Key { command, storage } => {
+            let key_config = KeyConfig::new(
+                PathBuf::from(config.key_path),
+                storage.unwrap_or(config.key_storage),
+                config.key,
+            );
+            key::handle_command(command, key_config).unwrap()
+        }
+
+        Commands::Proof { command } => {
+            proof::handle_command(command);
+        }
+
+        Commands::Indexer {} => {
+            indexer::hanđle_command();
         }
     }
 }
