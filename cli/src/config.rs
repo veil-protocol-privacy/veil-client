@@ -1,8 +1,9 @@
-use crate::commands::key::storage::KeyStorageType;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::{default, fs};
+
+use crate::storage::KeyStorageType;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CliConfig {

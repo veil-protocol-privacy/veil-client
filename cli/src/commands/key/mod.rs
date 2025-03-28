@@ -1,11 +1,10 @@
-pub mod storage;
-
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use clap::{Subcommand, builder::Str};
 use solana_sdk::{signature::Keypair, signer::Signer};
-use storage::{KeyStorage, KeyStorageType, raw::RawKeyStorage};
+
+use crate::storage::{raw::RawKeyStorage, KeyStorage, KeyStorageType};
 
 #[derive(Clone, Subcommand)]
 pub enum KeyCommand {

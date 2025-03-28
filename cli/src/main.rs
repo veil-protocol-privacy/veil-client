@@ -1,14 +1,15 @@
-mod commands;
-mod config;
-mod libs;
-mod utils;
-
 use clap::{Parser, Subcommand, command};
-use commands::{
-    key::{self, KeyCommand, KeyConfig, storage::KeyStorageType},
-    tx::create_deposit_instructions_data,
+use cli::{
+    commands::{
+        indexer,
+        key::{self, KeyCommand, KeyConfig},
+        proof::{self, ProofCommand},
+        tx::create_deposit_instructions_data,
+    },
+    config::CliConfig,
+    storage::KeyStorageType,
+    utils::{get_current_tree_number, get_deposit_account_metas, get_key_from_file},
 };
-use config::CliConfig;
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
     commitment_config::CommitmentConfig,
@@ -20,7 +21,6 @@ use solana_sdk::{
 };
 use spl_associated_token_account::get_associated_token_address;
 use std::{path::PathBuf, str::FromStr};
-use utils::{get_current_tree_number, get_deposit_account_metas, get_key_from_file};
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -133,6 +133,13 @@ enum Commands {
         #[arg(short, long)]
         storage: Option<KeyStorageType>,
     },
+
+    Proof {
+        #[command(subcommand)]
+        command: ProofCommand,
+    },
+
+    Indexer {},
 }
 
 fn main() {
@@ -376,6 +383,14 @@ fn main() {
                 config.key,
             );
             key::handle_command(command, key_config).unwrap()
+        }
+
+        Commands::Proof { command } => {
+            proof::handle_command(command);
+        }
+
+        Commands::Indexer {} => {
+            indexer::hanđle_command();
         }
     }
 }
