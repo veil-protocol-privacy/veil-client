@@ -4,10 +4,7 @@ use darksol::{
 use solana_sdk::{program_error::ProgramError, pubkey::Pubkey};
 use types::{generate_nullifier, utxo::UTXO};
 
-use crate::{
-    libs::{TransferInput, TransferOutput},
-    utils::generate_random_bytes,
-};
+use crate::{TransferInput, TransferOutput, utils::generate_random_bytes};
 
 pub fn create_deposit_instructions_data(
     token_id: &Pubkey,
@@ -129,12 +126,12 @@ pub fn create_transfer_instructions_data(
 
     let mut transfer_request =
         TransferRequest::new(proof, merkle_root, tree_number, commitment_cipher_texts);
-        
-    nullifiers.iter().for_each(|nullifier | {
+
+    nullifiers.iter().for_each(|nullifier| {
         transfer_request.push_nullifiers(nullifier.clone());
     });
 
-    commiments.iter().for_each(| commitment | {
+    commiments.iter().for_each(|commitment| {
         transfer_request.push_encrypted_commitments(commitment.clone());
     });
 

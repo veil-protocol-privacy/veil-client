@@ -1,11 +1,15 @@
-mod commands;
-mod libs;
-mod utils;
-
-use crate::commands::tx::create_deposit_instructions_data;
-use clap::{Parser, Subcommand};
-use commands::tx::create_transfer_instructions_data;
-use utils::{get_current_tree_number, get_deposit_account_metas, get_key_from_file};
+use clap::{Parser, Subcommand, command};
+use cli::{
+    commands::{
+        indexer,
+        key::{self, KeyCommand, KeyConfig},
+        proof::{self, ProofCommand},
+        tx::create_deposit_instructions_data,
+    },
+    config::CliConfig,
+    storage::KeyStorageType,
+    utils::{get_current_tree_number, get_deposit_account_metas, get_key_from_file},
+};
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
     commitment_config::CommitmentConfig,
@@ -16,7 +20,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use spl_associated_token_account::get_associated_token_address;
-use std::str::FromStr;
+use std::{path::PathBuf, str::FromStr};
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -30,6 +34,9 @@ struct Cli {
     /// program id
     #[arg(short, long)]
     program_id: String,
+
+    #[clap(short, long)]
+    config: Option<PathBuf>,
 
     #[command(subcommand)]
     command: Commands,
@@ -118,12 +125,29 @@ enum Commands {
         #[arg(short, long)]
         key_file_path: String,
     },
+
+    Key {
+        #[command(subcommand)]
+        command: KeyCommand,
+
+        #[arg(short, long)]
+        storage: Option<KeyStorageType>,
+    },
+
+    Proof {
+        #[command(subcommand)]
+        command: ProofCommand,
+    },
+
+    Indexer {},
 }
 
 fn main() {
     let cli = Cli::parse();
     let url = &cli.rpc_url;
     let rpc_client = RpcClient::new_with_commitment(url.clone(), CommitmentConfig::confirmed());
+
+    let config = CliConfig::load_or_create(cli.config).unwrap();
 
     match cli.command {
         Commands::Deposit {
@@ -137,18 +161,16 @@ fn main() {
             let program_id: Pubkey = match Pubkey::from_str(&cli.program_id) {
                 Ok(pk) => pk,
                 Err(err) => {
-                    println!(
-                        "{}",
-                        format!("Invalid program ID: {}", err.to_string())
-                    );
+                    println!("{}", format!("Invalid program ID: {}", err.to_string()));
 
                     return;
                 }
             };
-             // get user key from file
-             let payer = read_keypair_file(&key_file_path).expect("Failed to load payer keypair");
+            // get user key from file
+            let payer = read_keypair_file(&key_file_path).expect("Failed to load payer keypair");
 
-            let token_mint_addr_str = token_id.unwrap_or("So11111111111111111111111111111111111111112".to_string()); // if not provide then assume native sol, use wrapped sol mint account
+            let token_mint_addr_str =
+                token_id.unwrap_or("So11111111111111111111111111111111111111112".to_string()); // if not provide then assume native sol, use wrapped sol mint account
             let token_mint_addr = match Pubkey::from_str(&token_mint_addr_str) {
                 Ok(pk) => pk,
                 Err(err) => {
@@ -159,13 +181,13 @@ fn main() {
 
                     return;
                 }
-            };  
+            };
 
-            // if not provided depositor token address will be 
+            // if not provided depositor token address will be
             // an associated token address
             let depositor_token_addr: Pubkey;
             if depositor_token_address.is_none() {
-                let token_mint_addr_str = depositor_token_address.unwrap(); 
+                let token_mint_addr_str = depositor_token_address.unwrap();
                 depositor_token_addr = match Pubkey::from_str(&token_mint_addr_str) {
                     Ok(pk) => pk,
                     Err(err) => {
@@ -173,17 +195,18 @@ fn main() {
                             "{}",
                             format!("invalid token mint address: {}", err.to_string())
                         );
-    
+
                         return;
                     }
-                };                     
+                };
             } else {
-                depositor_token_addr = get_associated_token_address(&payer.pubkey(), &token_mint_addr);
+                depositor_token_addr =
+                    get_associated_token_address(&payer.pubkey(), &token_mint_addr);
             }
-            
-            
+
             // get system generated spending and viewing key from file
-            let (spending_key, viewing_key, deposit_key) = get_key_from_file(svk_file_path).unwrap();
+            let (spending_key, viewing_key, deposit_key) =
+                get_key_from_file(svk_file_path).unwrap();
 
             let serialized_data = match create_deposit_instructions_data(
                 &token_mint_addr,
@@ -217,16 +240,16 @@ fn main() {
                 }
             };
 
-            // get all necessary account meta
-            // funding_account
-            // user_wallet
-            // user_token_account
-            // pda_token_account
-            // mint_account
-            // commitments_account
-            // commitments_manager_account
-            // token_program
-            // system_program
+            // // get all necessary account meta
+            // // funding_account
+            // // user_wallet
+            // // user_token_account
+            // // pda_token_account
+            // // mint_account
+            // // commitments_account
+            // // commitments_manager_account
+            // // token_program
+            // // system_program
 
             let accounts = get_deposit_account_metas(
                 url.clone(),
@@ -238,25 +261,24 @@ fn main() {
             )
             .unwrap();
 
-            // Create instruction
-            let instruction = Instruction {
-                program_id,
-                accounts,
-                data: serialized_data,
-            };
+            // // Create instruction
+            // let instruction = Instruction {
+            //     program_id,
+            //     accounts,
+            //     data: serialized_data,
+            // };
 
-            let message = Message::new(&[instruction], Some(&payer.pubkey()));
-            let mut transaction = Transaction::new_unsigned(message);
+            // let message = Message::new(&[instruction], Some(&payer.pubkey()));
+            // let mut transaction = Transaction::new_unsigned(message);
 
-            let recent_blockhash = rpc_client.get_latest_blockhash().unwrap();
-            transaction.sign(&[&payer], recent_blockhash);
+            // let recent_blockhash = rpc_client.get_latest_blockhash().unwrap();
+            // transaction.sign(&[&payer], recent_blockhash);
 
-            let signature = rpc_client
-                .send_and_confirm_transaction(&transaction)
-                .unwrap();
-            println!("✅ Transaction successful! Signature: {}", signature);
+            // let signature = rpc_client
+            //     .send_and_confirm_transaction(&transaction)
+            //     .unwrap();
+            // println!("✅ Transaction successful! Signature: {}", signature);
         }
-
         Commands::Transfer {
             token_id,
             receiver_viewing_public_key,
@@ -268,15 +290,13 @@ fn main() {
             let program_id = match Pubkey::from_str(&cli.program_id) {
                 Ok(pk) => pk,
                 Err(err) => {
-                    println!(
-                        "{}",
-                        format!("Invalid program ID: {}", err.to_string())
-                    );
+                    println!("{}", format!("Invalid program ID: {}", err.to_string()));
 
                     return;
                 }
             };
-            let token_mint_addr_str = token_id.unwrap_or("So11111111111111111111111111111111111111112".to_string()); // if not provide then assume native sol, use wrapped sol mint account
+            let token_mint_addr_str =
+                token_id.unwrap_or("So11111111111111111111111111111111111111112".to_string()); // if not provide then assume native sol, use wrapped sol mint account
             let token_mint_addr = match Pubkey::from_str(&token_mint_addr_str) {
                 Ok(pk) => pk,
                 Err(err) => {
@@ -287,12 +307,13 @@ fn main() {
 
                     return;
                 }
-            };            
-            
+            };
+
             // get user key from file
             let payer = read_keypair_file(&key_file_path).expect("Failed to load payer keypair");
             // get system generated spending and viewing key from file
-            let (spending_key, viewing_key, _deposit_key) = get_key_from_file(svk_file_path).unwrap();
+            let (spending_key, viewing_key, _deposit_key) =
+                get_key_from_file(svk_file_path).unwrap();
 
             // let serialized_data = match create_transfer_instructions_data(
             //     &token_mint_addr,
@@ -303,7 +324,7 @@ fn main() {
             //     memo,
             //     ,
             //     ,
-                
+
             // ) {
             //     Ok(data) => data,
             //     Err(err) => {
@@ -334,7 +355,6 @@ fn main() {
                 .unwrap();
             println!("✅ Transaction successful! Signature: {}", signature);
         }
-
         Commands::Withdraw {
             amount,
             key_file_path,
@@ -355,6 +375,22 @@ fn main() {
                 .send_and_confirm_transaction(&transaction)
                 .unwrap();
             println!("✅ Transaction successful! Signature: {}", signature);
+        }
+        Commands::Key { command, storage } => {
+            let key_config = KeyConfig::new(
+                PathBuf::from(config.key_path),
+                storage.unwrap_or(config.key_storage),
+                config.key,
+            );
+            key::handle_command(command, key_config).unwrap()
+        }
+
+        Commands::Proof { command } => {
+            proof::handle_command(command);
+        }
+
+        Commands::Indexer {} => {
+            indexer::hanđle_command();
         }
     }
 }

@@ -1,3 +1,8 @@
+pub mod commands;
+pub mod config;
+pub mod storage;
+pub mod utils;
+
 pub struct TransferInput {
     pub amount: u64,
     pub merkle_leaf_index: u64,
