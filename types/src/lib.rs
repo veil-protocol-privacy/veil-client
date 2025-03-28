@@ -1,12 +1,12 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 
-pub mod utxo;
-pub mod utils;
 pub mod curves;
+pub mod utils;
+pub mod utxo;
 
+pub use curves::*;
 pub use utils::*;
 pub use utxo::*;
-pub use curves::*;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Clone)]
 pub struct Arguments {
@@ -36,16 +36,22 @@ pub struct PrivateData {
     pub merkle_leaf_indices: Vec<u64>,
     pub nullifying_key: Vec<u8>,
     pub utxo_output_keys: Vec<Vec<u8>>,
-    pub amount_out: Vec<u64>
+    pub amount_out: Vec<u64>,
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Clone)]
-pub struct PlainText {
+pub struct CommitmentPlainText {
     pub master_pubkey: Vec<u8>,
     pub random: Vec<u8>,
     pub amount: u64,
     pub token_id: Vec<u8>,
-    pub memo: String
+    pub memo: String,
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize, Clone)]
+pub struct DepositPlainText {
+    pub encrypted_random: Vec<u8>,
+    pub encrypted_receiver: Vec<u8>,
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Clone)]
@@ -57,12 +63,30 @@ pub struct CipherText {
 }
 
 impl CipherText {
-    pub fn new(cipher: Vec<u8>, nonce: Vec<u8>, blinded_sender_pubkey: Vec<u8>, blinded_receiver_pubkey: Vec<u8>) -> Self {
+    pub fn new(
+        cipher: Vec<u8>,
+        nonce: Vec<u8>,
+        blinded_sender_pubkey: Vec<u8>,
+        blinded_receiver_pubkey: Vec<u8>,
+    ) -> Self {
         Self {
             cipher,
             nonce,
             blinded_sender_pubkey,
             blinded_receiver_pubkey,
         }
+    }
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize, Clone)]
+pub struct DepositCiphertext {
+    pub cipher: Vec<u8>,
+    pub nonce: Vec<u8>,
+    pub shield_key: Vec<u8>,
+}
+
+impl DepositCiphertext {
+    pub fn new(cipher: Vec<u8>, nonce: Vec<u8>, shield_key: Vec<u8>) -> Self {
+        Self { cipher, nonce, shield_key }
     }
 }
