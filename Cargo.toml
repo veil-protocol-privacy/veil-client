@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["cli", "client", "methods", "types"]
+members = ["cli", "client", "indexer", "methods", "types"]
 
 # Always optimize; building and running the guest takes much longer without optimization.
 [profile.dev]
