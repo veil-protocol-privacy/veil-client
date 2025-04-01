@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-use crate::storage::KeyStorageType;
+use crate::key::KeyStorageType;
 
 const DEFAULT_RPC_URL: &str = "http://localhost:8899";
 const DEFAULT_KEY_STORAGE: KeyStorageType = KeyStorageType::Raw;

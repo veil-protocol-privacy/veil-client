@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand, command};
 use cli::{
+    cli::CliContext,
     commands::{
         indexer::IndexerCommands,
         key::{KeyCommands, KeyConfig},
@@ -8,7 +9,7 @@ use cli::{
     },
     config::CliConfig,
     solana::SolanaClient,
-    storage::KeyStorageType,
+    key::{KeyStorage, KeyStorageType, raw::RawKeyStorage},
 };
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::commitment_config::CommitmentConfig;
@@ -39,14 +40,13 @@ enum Commands {
     Tx {
         #[command(subcommand)]
         command: TxCommands,
-
-        // /// token mint account
-        // /// if not provided then assume native solana
+        // // token mint account
+        // // if not provided then assume native solana
         // #[arg(short, long)]
         // token_id: Option<String>,
-        /// file path to keypair
-        #[arg(short, long)]
-        key_path: String,
+        // // file path to keypair
+        // #[arg(short, long)]
+        // key_path: String,
     },
 
     Key {
@@ -71,14 +71,27 @@ enum Commands {
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
-
     let config = CliConfig::load_or_create(cli.config).unwrap();
 
-    let url = &cli.rpc_url.unwrap_or(config.rpc_url);
-
     let solana_client = SolanaClient {
-        client: RpcClient::new_with_commitment(url.clone(), CommitmentConfig::confirmed()),
+        client: RpcClient::new_with_commitment(
+            cli.rpc_url.unwrap_or(config.rpc_url),
+            CommitmentConfig::confirmed(),
+        ),
         ws_client: None,
+    };
+
+    let key_storage = match config.key_storage {
+        KeyStorageType::Raw | _ => RawKeyStorage::new(config.key_path.clone().into()),
+        // KeyStorageType::Encrypted => unimplemented!(),
+    };
+
+    let key = key_storage.load_keypair(&config.key).unwrap();
+
+    let ctx = CliContext {
+        client: solana_client,
+        program_id: cli.program_id,
+        key,
     };
 
     match cli.command {
@@ -96,8 +109,8 @@ async fn main() {
         Commands::Indexer { command } => {
             IndexerCommands::hanđle_command(command);
         }
-        Commands::Tx { command, key_path } => {
-            TxCommands::handle_command(command, cli.program_id, solana_client).await;
+        Commands::Tx { command } => {
+            TxCommands::handle_command(command, &ctx).await;
         }
     }
 }

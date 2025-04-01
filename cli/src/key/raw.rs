@@ -9,9 +9,10 @@ use super::KeyStorage;
 
 #[derive(Serialize, Deserialize)]
 pub struct StoredKeypair {
-    deposit_key: Vec<u8>,
-    view_key: Vec<u8>,
-    spend_key: Vec<u8>,
+    pub key: Vec<u8>,
+    pub deposit_key: Vec<u8>,
+    pub view_key: Vec<u8>,
+    pub spend_key: Vec<u8>,
 }
 
 pub struct RawKeyStorage {
@@ -27,26 +28,24 @@ impl RawKeyStorage {
 impl StoredKeypair {
     pub fn new() -> Self {
         Self {
+            key: Keypair::new().to_bytes().to_vec(),
             deposit_key: Keypair::new().to_bytes().to_vec(),
             view_key: Keypair::new().to_bytes().to_vec(),
             spend_key: Keypair::new().to_bytes().to_vec(),
         }
     }
 
-    pub fn from(
-        deposit_key: Option<Keypair>,
-        spend_key: Option<Keypair>,
-        view_key: Option<Keypair>,
-    ) -> Self {
-        let deposit_key = deposit_key.unwrap_or_else(Keypair::new);
-        let spend_key = spend_key.unwrap_or_else(Keypair::new);
-        let view_key = view_key.unwrap_or_else(Keypair::new);
-
+    pub fn from(key: Keypair) -> Self {
         Self {
-            deposit_key: deposit_key.to_bytes().to_vec(),
-            spend_key: spend_key.to_bytes().to_vec(),
-            view_key: view_key.to_bytes().to_vec(),
+            key: key.to_bytes().to_vec(),
+            deposit_key: Keypair::new().to_bytes().to_vec(),
+            view_key: Keypair::new().to_bytes().to_vec(),
+            spend_key: Keypair::new().to_bytes().to_vec(),
         }
+    }
+
+    pub fn key(&self) -> Keypair {
+        Keypair::from_bytes(&self.key).unwrap()
     }
 
     pub fn deposit_key(&self) -> Keypair {

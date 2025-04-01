@@ -2,20 +2,18 @@ use std::str::FromStr;
 
 use clap::Subcommand;
 use solana_sdk::{
-    instruction::Instruction, message::Message, pubkey::Pubkey, signature::read_keypair_file,
-    signer::Signer, transaction::Transaction,
+    instruction::Instruction, message::Message, pubkey::Pubkey, signer::Signer,
+    transaction::Transaction,
 };
 use spl_associated_token_account::get_associated_token_address;
 
 use crate::{
-    solana::{
-        SolanaClient,
-        transaction::{
-            create_deposit_instructions_data, create_transfer_instructions_data,
-            create_withdraw_instructions_data,
-        },
+    cli::CliContext,
+    solana::transaction::{
+        create_deposit_instructions_data, create_transfer_instructions_data,
+        create_withdraw_instructions_data,
     },
-    utils::{get_key_from_file, get_proof_from_file, read_json_file},
+    utils::{get_proof_from_file, read_json_file},
 };
 
 #[derive(Clone, Subcommand)]
@@ -39,14 +37,13 @@ pub enum TxCommands {
         /// memo
         #[arg(short, long)]
         memo: String,
+        // /// file path to spending and viewing key
+        // #[arg(short, long)]
+        // svk_file_path: String,
 
-        /// file path to spending and viewing key
-        #[arg(short, long)]
-        svk_file_path: String,
-
-        /// file path to keypair
-        #[arg(short, long)]
-        key_file_path: String,
+        // /// file path to keypair
+        // #[arg(short, long)]
+        // key_file_path: String,
     },
 
     /// Transfer money privately
@@ -71,14 +68,13 @@ pub enum TxCommands {
         /// file path to json file contains all the inputs and outputs
         #[arg(short, long)]
         json_file_path: String,
+        // /// file path to spending and viewing key
+        // #[arg(short, long)]
+        // svk_file_path: String,
 
-        /// file path to spending and viewing key
-        #[arg(short, long)]
-        svk_file_path: String,
-
-        /// file path to keypair
-        #[arg(short, long)]
-        key_file_path: String,
+        // /// file path to keypair
+        // #[arg(short, long)]
+        // key_file_path: String,
     },
 
     /// Withdraw fund to an account
@@ -108,29 +104,26 @@ pub enum TxCommands {
         /// file path to json file contains all the inputs and outputs
         #[arg(short, long)]
         json_file_path: String,
+        // /// file path to spending and viewing key
+        // #[arg(short, long)]
+        // svk_file_path: String,
 
-        /// file path to spending and viewing key
-        #[arg(short, long)]
-        svk_file_path: String,
-
-        /// file path to keypair
-        #[arg(short, long)]
-        key_file_path: String,
+        // /// file path to keypair
+        // #[arg(short, long)]
+        // key_file_path: String,
     },
 }
 
 impl TxCommands {
-    pub async fn handle_command(command: TxCommands, program_id: String, client: SolanaClient) {
+    pub async fn handle_command(command: TxCommands, ctx: &CliContext) {
         match command {
             TxCommands::Deposit {
                 depositor_token_address,
                 token_id,
                 amount,
                 memo,
-                svk_file_path,
-                key_file_path,
             } => {
-                let program_id: Pubkey = match Pubkey::from_str(&program_id) {
+                let program_id: Pubkey = match Pubkey::from_str(&ctx.program_id) {
                     Ok(pk) => pk,
                     Err(err) => {
                         println!("{}", format!("Invalid program ID: {}", err.to_string()));
@@ -138,9 +131,6 @@ impl TxCommands {
                         return;
                     }
                 };
-                // get user key from file
-                let payer =
-                    read_keypair_file(&key_file_path).expect("Failed to load payer keypair");
 
                 let token_mint_addr_str =
                     token_id.unwrap_or("So11111111111111111111111111111111111111112".to_string()); // if not provide then assume native sol, use wrapped sol mint account
@@ -173,20 +163,18 @@ impl TxCommands {
                         }
                     };
                 } else {
-                    depositor_token_addr =
-                        get_associated_token_address(&payer.pubkey(), &token_mint_addr);
+                    depositor_token_addr = get_associated_token_address(
+                        &ctx.key.deposit_key().pubkey(),
+                        &token_mint_addr,
+                    );
                 }
-
-                // get system generated spending and viewing key from file
-                let (spending_key, viewing_key, deposit_key) =
-                    get_key_from_file(svk_file_path).unwrap();
 
                 let serialized_data = match create_deposit_instructions_data(
                     &token_mint_addr,
                     amount,
-                    spending_key,
-                    viewing_key,
-                    deposit_key,
+                    ctx.key.spend_key.clone(),
+                    ctx.key.view_key.clone(),
+                    ctx.key.deposit_key.clone(),
                     memo,
                 ) {
                     Ok(data) => data,
@@ -201,7 +189,7 @@ impl TxCommands {
                 };
 
                 // get current tree number to fetch the correct commitments account info
-                let tree_number = match client.get_current_tree_number(&program_id).await {
+                let tree_number = match ctx.client.get_current_tree_number(&program_id).await {
                     Ok(number) => number,
                     Err(err) => {
                         println!(
@@ -224,9 +212,10 @@ impl TxCommands {
                 // // token_program
                 // // system_program
 
-                let accounts = client
+                let accounts = ctx
+                    .client
                     .get_deposit_account_metas(
-                        &payer.pubkey(),
+                        &ctx.key.key().pubkey(),
                         &depositor_token_addr,
                         &token_mint_addr,
                         &program_id,
@@ -242,13 +231,14 @@ impl TxCommands {
                     data: serialized_data,
                 };
 
-                let message = Message::new(&[instruction], Some(&payer.pubkey()));
+                let message = Message::new(&[instruction], Some(&ctx.key.key().pubkey()));
                 let mut transaction = Transaction::new_unsigned(message);
 
-                let recent_blockhash = client.client.get_latest_blockhash().await.unwrap();
-                transaction.sign(&[&payer], recent_blockhash);
+                let recent_blockhash = ctx.client.client.get_latest_blockhash().await.unwrap();
+                transaction.sign(&[&ctx.key.key()], recent_blockhash);
 
-                let signature = client
+                let signature = ctx
+                    .client
                     .client
                     .send_and_confirm_transaction(&transaction)
                     .await
@@ -258,13 +248,11 @@ impl TxCommands {
             TxCommands::Transfer {
                 token_id,
                 receiver_viewing_public_key,
-                svk_file_path,
-                key_file_path,
                 json_file_path,
                 proof_file_path,
                 tree_number,
             } => {
-                let program_id = match Pubkey::from_str(program_id.as_str()) {
+                let program_id = match Pubkey::from_str(&ctx.program_id) {
                     Ok(pk) => pk,
                     Err(err) => {
                         println!("{}", format!("Invalid program ID: {}", err.to_string()));
@@ -286,12 +274,6 @@ impl TxCommands {
                     }
                 };
 
-                // get user key from file
-                let payer =
-                    read_keypair_file(&key_file_path).expect("Failed to load payer keypair");
-                // get system generated spending and viewing key from file
-                let (spending_key, viewing_key, _deposit_key) =
-                    get_key_from_file(svk_file_path).unwrap();
                 let (inputs, outputs) = read_json_file(json_file_path).unwrap();
                 let proof = get_proof_from_file(proof_file_path).unwrap();
 
@@ -303,8 +285,8 @@ impl TxCommands {
                     outputs,
                     vec![],
                     tree_number,
-                    spending_key,
-                    viewing_key,
+                    ctx.key.spend_key.clone(),
+                    ctx.key.view_key.clone(),
                 ) {
                     Ok(data) => data,
                     Err(err) => {
@@ -318,7 +300,8 @@ impl TxCommands {
                 };
 
                 // get current tree number to fetch the correct commitments account info
-                let newest_tree_number = match client.get_current_tree_number(&program_id).await {
+                let newest_tree_number = match ctx.client.get_current_tree_number(&program_id).await
+                {
                     Ok(number) => number,
                     Err(err) => {
                         println!(
@@ -336,10 +319,11 @@ impl TxCommands {
                 // current commitments account
                 // commitments manager account
 
-                let accounts = client
+                let accounts = ctx
+                    .client
                     .get_transfer_account_metas(
                         &program_id,
-                        &payer.pubkey(),
+                        &ctx.key.key().pubkey(),
                         tree_number,
                         newest_tree_number,
                     )
@@ -353,13 +337,14 @@ impl TxCommands {
                     data: serialized_data,
                 };
 
-                let message = Message::new(&[instruction], Some(&payer.pubkey()));
+                let message = Message::new(&[instruction], Some(&ctx.key.key().pubkey()));
                 let mut transaction = Transaction::new_unsigned(message);
 
-                let recent_blockhash = client.client.get_latest_blockhash().await.unwrap();
-                transaction.sign(&[&payer], recent_blockhash);
+                let recent_blockhash = ctx.client.client.get_latest_blockhash().await.unwrap();
+                transaction.sign(&[&ctx.key.key()], recent_blockhash);
 
-                let signature = client
+                let signature = ctx
+                    .client
                     .client
                     .send_and_confirm_transaction(&transaction)
                     .await
@@ -368,15 +353,13 @@ impl TxCommands {
             }
             TxCommands::Withdraw {
                 amount,
-                key_file_path,
                 token_id,
                 receiver_token_account,
-                svk_file_path,
                 tree_number,
                 proof_file_path,
                 json_file_path,
             } => {
-                let program_id = match Pubkey::from_str(program_id.as_str()) {
+                let program_id = match Pubkey::from_str(&ctx.program_id) {
                     Ok(pk) => pk,
                     Err(err) => {
                         println!("{}", format!("Invalid program ID: {}", err.to_string()));
@@ -398,12 +381,6 @@ impl TxCommands {
                     }
                 };
 
-                // get user key from file
-                let payer =
-                    read_keypair_file(&key_file_path).expect("Failed to load payer keypair");
-                // get system generated spending and viewing key from file
-                let (spending_key, viewing_key, _deposit_key) =
-                    get_key_from_file(svk_file_path).unwrap();
                 let (inputs, _outputs) = read_json_file(json_file_path).unwrap();
                 let proof = get_proof_from_file(proof_file_path).unwrap();
 
@@ -415,8 +392,8 @@ impl TxCommands {
                         inputs,
                         vec![],
                         tree_number,
-                        spending_key,
-                        viewing_key,
+                        ctx.key.spend_key.clone(),
+                        ctx.key.view_key.clone(),
                     ) {
                         Ok(data) => data,
                         Err(err) => {
@@ -430,7 +407,8 @@ impl TxCommands {
                     };
 
                 // get current tree number to fetch the correct commitments account info
-                let newest_tree_number = match client.get_current_tree_number(&program_id).await {
+                let newest_tree_number = match ctx.client.get_current_tree_number(&program_id).await
+                {
                     Ok(number) => number,
                     Err(err) => {
                         println!(
@@ -460,7 +438,7 @@ impl TxCommands {
                     };
                 } else {
                     receiver_token_addr =
-                        get_associated_token_address(&payer.pubkey(), &token_mint_addr);
+                        get_associated_token_address(&ctx.key.key().pubkey(), &token_mint_addr);
                 }
 
                 // get all necessary account meta
@@ -474,10 +452,11 @@ impl TxCommands {
                 // current commitment account
                 // commitments manager account
 
-                let accounts = client
+                let accounts = ctx
+                    .client
                     .get_withdraw_account_metas(
                         &program_id,
-                        &payer.pubkey(),
+                        &ctx.key.key().pubkey(),
                         &receiver_token_addr,
                         &token_mint_addr,
                         tree_number,
@@ -494,13 +473,14 @@ impl TxCommands {
                     data: serialized_data,
                 };
 
-                let message = Message::new(&[instruction], Some(&payer.pubkey()));
+                let message = Message::new(&[instruction], Some(&ctx.key.key().pubkey()));
                 let mut transaction = Transaction::new_unsigned(message);
 
-                let recent_blockhash = client.client.get_latest_blockhash().await.unwrap();
-                transaction.sign(&[&payer], recent_blockhash);
+                let recent_blockhash = ctx.client.client.get_latest_blockhash().await.unwrap();
+                transaction.sign(&[&ctx.key.key()], recent_blockhash);
 
-                let signature = client
+                let signature = ctx
+                    .client
                     .client
                     .send_and_confirm_transaction(&transaction)
                     .await
