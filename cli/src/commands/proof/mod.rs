@@ -1,7 +1,7 @@
 use clap::Subcommand;
 
-#[derive(Clone, Subcommand)]
-pub enum ProofCommand {
+#[derive(Clone, Debug, Subcommand)]
+pub enum ProofCommands {
     Generate {
         // #[arg(short, long)]
         // token_id: String,
@@ -24,5 +24,8 @@ pub enum ProofCommand {
     },
 }
 
-pub fn handle_command(command: ProofCommand) {
+impl ProofCommands {
+    pub fn handle_command(command: ProofCommands) {
+        todo!("handle_command: {:?}", command);
+    }
 }
