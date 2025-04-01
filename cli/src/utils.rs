@@ -8,7 +8,8 @@ use spl_associated_token_account::get_associated_token_address;
 use spl_token::ID as TOKEN_PROGRAM_ID;
 use std::fs;
 
-use crate::libs::{JsonContent, TransferInput, TransferOutput};
+use crate::{JsonContent, TransferInput, TransferOutput};
+
 
 pub const CONTENT_LENGTH: usize = 96;
 

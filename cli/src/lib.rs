@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
 pub mod commands;
 pub mod config;
 pub mod storage;
 pub mod utils;
 
+#[derive(Serialize, Deserialize)]
 pub struct TransferInput {
     pub amount: u64,
     pub merkle_leaf_index: u64,

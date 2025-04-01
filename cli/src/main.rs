@@ -25,7 +25,7 @@ use solana_sdk::{
 };
 use spl_associated_token_account::get_associated_token_address;
 use utils::{
-    get_current_tree_number, get_deposit_account_metas, get_key_from_file, get_proof_from_file, get_transfer_account_metas, get_withdraw_account_metas, read_json_file
+    get_proof_from_file, get_transfer_account_metas, get_withdraw_account_metas, read_json_file
 };
 use std::{path::PathBuf, str::FromStr};
 
@@ -209,7 +209,7 @@ fn main() {
             // if not provided depositor token address will be
             // an associated token address
             let depositor_token_addr: Pubkey;
-            if depositor_token_address.is_none() {
+            if depositor_token_address.is_some() {
                 let token_mint_addr_str = depositor_token_address.unwrap();
                 depositor_token_addr = match Pubkey::from_str(&token_mint_addr_str) {
                     Ok(pk) => pk,
@@ -263,16 +263,16 @@ fn main() {
                 }
             };
 
-            // // get all necessary account meta
-            // // funding_account
-            // // user_wallet
-            // // user_token_account
-            // // pda_token_account
-            // // mint_account
-            // // commitments_account
-            // // commitments_manager_account
-            // // token_program
-            // // system_program
+            // get all necessary account meta
+            // funding_account
+            // user_wallet
+            // user_token_account
+            // pda_token_account
+            // mint_account
+            // commitments_account
+            // commitments_manager_account
+            // token_program
+            // system_program
 
             let accounts = get_deposit_account_metas(
                 url.clone(),
@@ -284,23 +284,23 @@ fn main() {
             )
             .unwrap();
 
-            // // Create instruction
-            // let instruction = Instruction {
-            //     program_id,
-            //     accounts,
-            //     data: serialized_data,
-            // };
+            // Create instruction
+            let instruction = Instruction {
+                program_id,
+                accounts,
+                data: serialized_data,
+            };
 
-            // let message = Message::new(&[instruction], Some(&payer.pubkey()));
-            // let mut transaction = Transaction::new_unsigned(message);
+            let message = Message::new(&[instruction], Some(&payer.pubkey()));
+            let mut transaction = Transaction::new_unsigned(message);
 
-            // let recent_blockhash = rpc_client.get_latest_blockhash().unwrap();
-            // transaction.sign(&[&payer], recent_blockhash);
+            let recent_blockhash = rpc_client.get_latest_blockhash().unwrap();
+            transaction.sign(&[&payer], recent_blockhash);
 
-            // let signature = rpc_client
-            //     .send_and_confirm_transaction(&transaction)
-            //     .unwrap();
-            // println!("✅ Transaction successful! Signature: {}", signature);
+            let signature = rpc_client
+                .send_and_confirm_transaction(&transaction)
+                .unwrap();
+            println!("✅ Transaction successful! Signature: {}", signature);
         }
         Commands::Transfer {
             token_id,
@@ -486,7 +486,7 @@ fn main() {
              // if not provided depositor token address will be
             // an associated token address
             let receiver_token_addr: Pubkey;
-            if receiver_token_account.is_none() {
+            if receiver_token_account.is_some() {
                 let token_mint_addr_str = receiver_token_account.unwrap();
                 receiver_token_addr = match Pubkey::from_str(&token_mint_addr_str) {
                     Ok(pk) => pk,
@@ -559,7 +559,7 @@ fn main() {
         }
 
         Commands::Indexer {} => {
-            indexer::hanđle_command();
+            indexer::handle_command();
         }
     }
 }

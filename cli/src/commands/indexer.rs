@@ -1,1 +1,1 @@
-pub fn hanđle_command() {}
+pub fn handle_command() {}

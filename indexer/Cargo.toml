@@ -14,3 +14,10 @@ solana-client.workspace = true
 solana-sdk.workspace = true
 solana-transaction-status = "2.2.4"
 tokio = "1.44.1"
+
+client ={ path = "../client" }
+types ={ path = "../types" }
+darksol = {path="../../DarkSol/programs/DarkSol"}
+borsh = "1.5.7"
+axum = "0.8.3"
+base64 = "0.22.1"

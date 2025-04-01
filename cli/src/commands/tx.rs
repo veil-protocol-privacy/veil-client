@@ -5,7 +5,7 @@ use darksol::{
 use solana_sdk::pubkey::Pubkey;
 use types::{generate_nullifier, utxo::UTXO};
 
-use crate::{TransferInput, TransferOutput, utils::generate_random_bytes};
+use crate::{utils::generate_random_bytes, TransferInput, TransferOutput};
 
 pub fn create_deposit_instructions_data(
     token_id: &Pubkey,
