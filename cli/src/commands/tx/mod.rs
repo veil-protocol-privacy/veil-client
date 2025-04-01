@@ -112,6 +112,9 @@ pub enum TxCommands {
         // #[arg(short, long)]
         // key_file_path: String,
     },
+
+    /// Initialize fund to an account
+    Initialize {},
 }
 
 impl TxCommands {
@@ -169,7 +172,7 @@ impl TxCommands {
                     );
                 }
 
-                let serialized_data = match create_deposit_instructions_data(
+                let mut serialized_data = match create_deposit_instructions_data(
                     &token_mint_addr,
                     amount,
                     ctx.key.spend_key.clone(),
@@ -201,16 +204,16 @@ impl TxCommands {
                     }
                 };
 
-                // // get all necessary account meta
-                // // funding_account
-                // // user_wallet
-                // // user_token_account
-                // // pda_token_account
-                // // mint_account
-                // // commitments_account
-                // // commitments_manager_account
-                // // token_program
-                // // system_program
+                // get all necessary account meta
+                // funding_account
+                // user_wallet
+                // user_token_account
+                // pda_token_account
+                // mint_account
+                // commitments_account
+                // commitments_manager_account
+                // token_program
+                // system_program
 
                 let accounts = ctx
                     .client
@@ -224,6 +227,8 @@ impl TxCommands {
                     .await
                     .unwrap();
 
+                // insert variant bytes
+                serialized_data.insert(0, 0);
                 // Create instruction
                 let instruction = Instruction {
                     program_id,
@@ -277,7 +282,7 @@ impl TxCommands {
                 let (inputs, outputs) = read_json_file(json_file_path).unwrap();
                 let proof = get_proof_from_file(proof_file_path).unwrap();
 
-                let serialized_data = match create_transfer_instructions_data(
+                let mut serialized_data = match create_transfer_instructions_data(
                     &token_mint_addr,
                     receiver_viewing_public_key.as_bytes().to_vec(),
                     proof,
@@ -330,6 +335,8 @@ impl TxCommands {
                     .await
                     .unwrap();
 
+                // insert variant bytes
+                serialized_data.insert(0, 1);
                 // Create instruction
                 let instruction = Instruction {
                     program_id,
@@ -384,7 +391,7 @@ impl TxCommands {
                 let (inputs, _outputs) = read_json_file(json_file_path).unwrap();
                 let proof = get_proof_from_file(proof_file_path).unwrap();
 
-                let (serialized_data, insert_new_commitment) =
+                let (mut serialized_data, insert_new_commitment) =
                     match create_withdraw_instructions_data(
                         &token_mint_addr,
                         proof,
@@ -466,11 +473,56 @@ impl TxCommands {
                     .await
                     .unwrap();
 
+                // insert variant bytes
+                serialized_data.insert(0, 2);
                 // Create instruction
                 let instruction = Instruction {
                     program_id,
                     accounts,
                     data: serialized_data,
+                };
+
+                let message = Message::new(&[instruction], Some(&ctx.key.key().pubkey()));
+                let mut transaction = Transaction::new_unsigned(message);
+
+                let recent_blockhash = ctx.client.client.get_latest_blockhash().await.unwrap();
+                transaction.sign(&[&ctx.key.key()], recent_blockhash);
+
+                let signature = ctx
+                    .client
+                    .client
+                    .send_and_confirm_transaction(&transaction)
+                    .await
+                    .unwrap();
+                println!("✅ Transaction successful! Signature: {}", signature);
+            }
+            TxCommands::Initialize {} => {
+                let program_id = match Pubkey::from_str(&ctx.program_id) {
+                    Ok(pk) => pk,
+                    Err(err) => {
+                        println!("{}", format!("Invalid program ID: {}", err.to_string()));
+
+                        return;
+                    }
+                };
+
+                // get all necessary account meta
+                // funding account
+                // commitment account
+                // commitments manager account
+                // system program
+
+                let accounts = ctx
+                    .client
+                    .get_initialize_account_metas(&program_id)
+                    .await
+                    .unwrap();
+
+                // Create instruction
+                let instruction = Instruction {
+                    program_id,
+                    accounts,
+                    data: vec![3],
                 };
 
                 let message = Message::new(&[instruction], Some(&ctx.key.key().pubkey()));

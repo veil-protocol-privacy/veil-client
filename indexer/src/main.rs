@@ -52,7 +52,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Create shared state
     let shared_state = Arc::new(AppState {
-        index: Mutex::new(client_json_data.data),
+        index: Mutex::new(client_json_data.data.clone()),
     });
 
     let worker_state = Arc::clone(&shared_state);
@@ -72,46 +72,46 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Process received logs
     while let Some(logs) = rx.recv().await {
         for log in logs {
-            if log.contains(&DEPOSIT_EVENT.to_string()) {
-                if let Some(parsed_event) = Event::parse_event(&log) {
-                    if let Ok(decoded) = general_purpose::STANDARD.decode(parsed_event.value) {
-                        let (utxo, tree_num, start_position) =
-                            match decrypt_deposit_cipher_text(KEY_PATH.to_string(), decoded) {
-                                Ok(data) => data,
-                                Err(err) => continue,
-                            };
+            // if log.contains(&DEPOSIT_EVENT.to_string()) {
+            //     if let Some(parsed_event) = Event::parse_event(&log) {
+            //         if let Ok(decoded) = general_purpose::STANDARD.decode(parsed_event.value) {
+            //             let (utxo, tree_num, start_position) =
+            //                 match decrypt_deposit_cipher_text(KEY_PATH.to_string(), decoded) {
+            //                     Ok(data) => data,
+            //                     Err(err) => continue,
+            //                 };
 
-                        client.insert(vec![utxo.utxo_hash()]);
-                        client.insert_utxo(leaf_index, utxo);
+            //             client.insert(vec![utxo.utxo_hash()]);
+            //             client.insert_utxo(leaf_index, utxo);
 
-                        // update app state
-                        update_index_state(worker_state, client.to_json().data);
-                    }
-                }
-            }
+            //             // update app state
+            //             update_index_state(worker_state, client.to_json().data);
+            //         }
+            //     }
+            // }
 
-            if log.contains(&TRANSFER_EVENT.to_string())
-                || log.contains(&WITHDRAW_EVENT.to_string())
-            {
-                if let Some(parsed_event) = Event::parse_event(&log) {
-                    if let Ok(decoded) = general_purpose::STANDARD.decode(parsed_event.value) {
-                        let (utxos, leafs, tree_num, start_position) =
-                            match decrypt_transaction_cipher_text(KEY_PATH.to_string(), decoded) {
-                                Ok(data) => data,
-                                Err(err) => continue,
-                            };
+            // if log.contains(&TRANSFER_EVENT.to_string())
+            //     || log.contains(&WITHDRAW_EVENT.to_string())
+            // {
+            //     if let Some(parsed_event) = Event::parse_event(&log) {
+            //         if let Ok(decoded) = general_purpose::STANDARD.decode(parsed_event.value) {
+            //             let (utxos, leafs, tree_num, start_position) =
+            //                 match decrypt_transaction_cipher_text(KEY_PATH.to_string(), decoded) {
+            //                     Ok(data) => data,
+            //                     Err(err) => continue,
+            //                 };
 
-                        client.insert(leafs);
+            //             client.insert(leafs);
 
-                        utxos.iter().for_each(|utxo | {
-                            client.insert_utxo(leaf_index, utxo.clone());
-                        });
+            //             utxos.iter().for_each(|utxo | {
+            //                 client.insert_utxo(leaf_index, utxo.clone());
+            //             });
 
-                        // update app state
-                        update_index_state(worker_state, client.to_json().data);
-                    }
-                }
-            }
+            //             // update app state
+            //             update_index_state(worker_state, client.to_json().data);
+            //         }
+            //     }
+            // }
 
             if log.contains(&NULLIFIERS_EVENT.to_string()) {
                 if let Some(parsed_event) = Event::parse_event(&log) {

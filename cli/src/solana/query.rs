@@ -194,4 +194,47 @@ impl SolanaClient {
 
         Ok(account_metas)
     }
+
+    pub async fn get_initialize_account_metas(
+        &self,
+        program_id: &Pubkey,
+    ) -> Result<Vec<AccountMeta>, ProgramError> {
+        let mut query_addresses: Vec<Pubkey> = vec![];
+        let mut account_metas: Vec<AccountMeta> = vec![];
+
+        let (funding_pda, _bump_seed) = Pubkey::find_program_address(&[b"funding_pda"], program_id);
+        query_addresses.push(funding_pda);
+
+        let (commitments_pda, _bump_seed) = derive_pda(1, program_id);
+        query_addresses.push(commitments_pda);
+
+        let (commitments_manager_pda, _bump_seed) =
+            Pubkey::find_program_address(&[b"commitments_manager_pda"], program_id);
+        query_addresses.push(commitments_manager_pda);
+
+        let (commitments_manager_pda, _bump_seed) =
+            Pubkey::find_program_address(&[b"commitments_manager_pda"], program_id);
+        query_addresses.push(commitments_manager_pda);
+
+        query_addresses.push(system_program::ID);
+
+        for idx in 0..query_addresses.len() {
+            match self.client.get_account(&query_addresses[idx]).await {
+                Ok(account) => {
+                    let account_meta = if account.executable {
+                        AccountMeta::new(query_addresses[idx], false) // If executable, just readable
+                    } else {
+                        AccountMeta::new_readonly(query_addresses[idx], false) // Non-executable: read-only
+                    };
+
+                    account_metas.push(account_meta);
+                }
+                Err(err) => {
+                    println!("❌ Error fetching account info: {}", err);
+                }
+            }
+        }
+
+        Ok(account_metas)
+    }
 }
