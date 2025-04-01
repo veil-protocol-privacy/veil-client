@@ -163,11 +163,9 @@ impl UTXO {
 
     pub fn decrypt(
         ciphertext: CipherText,
-        expected_hash: Vec<u8>,
         viewing_key: Vec<u8>,
         spending_key: Vec<u8>,
-        token_id: Vec<u8>,
-    ) -> Self {
+    ) -> Result<Self, String> {
         let shared_key = share_key(viewing_key.clone(), ciphertext.blinded_sender_pubkey);
 
         // decrypt data
@@ -187,24 +185,23 @@ impl UTXO {
 
         let plain_text = match CommitmentPlainText::try_from_slice(&decrypted_data) {
             Ok(text) => text,
-            Err(err) => panic!(
+            Err(err) => return Err(format!(
                 "decrypted data not match with plain text structure: {}",
                 err
-            ),
+            )),
         };
 
         let utxo = UTXO::new(
             spending_key,
             viewing_key,
-            token_id,
+            plain_text.token_id,
             plain_text.random,
             ciphertext.nonce,
             plain_text.amount,
             plain_text.memo,
         );
 
-        assert_eq!(utxo.utxo_hash(), expected_hash, "utxo hash not match");
-        utxo
+        Ok(utxo)
     }
 
     pub fn encrypt_for_deposit(
@@ -257,7 +254,7 @@ impl UTXO {
         amount: u64,
         viewing_key: Vec<u8>,
         spending_key: Vec<u8>,
-    ) -> Self {
+    ) -> Result<Self, String> {
         let shared_key = share_key(viewing_key.clone(), ciphertext.shield_key.clone());
 
         // decrypt data
@@ -272,18 +269,26 @@ impl UTXO {
 
         let plain_text = match DepositPlainText::try_from_slice(&ciphertext.cipher) {
             Ok(text) => text,
-            Err(err) => panic!(
+            Err(err) => return Err(format!(
                 "decrypted data not match with plain text structure: {}",
                 err
-            ),
+            )),
         };
 
         let random = match cipher.decrypt(nonce, plain_text.encrypted_random.as_slice()) {
             Ok(data) => data,
-            Err(err) => panic!("failed to decrypt random: {}", err),
+            Err(err) => return Err(format!("failed to decrypt random: {}", err)),
         };
 
-        UTXO::new(spending_key, viewing_key.clone(), token_id, random, ciphertext.nonce, amount, "".to_string())
+        Ok(UTXO::new(
+            spending_key,
+            viewing_key.clone(),
+            token_id,
+            random,
+            ciphertext.nonce,
+            amount,
+            "".to_string(),
+        ))
     }
 }
 
