@@ -152,7 +152,7 @@ impl TxCommands {
                 // if not provided depositor token address will be
                 // an associated token address
                 let depositor_token_addr: Pubkey;
-                if depositor_token_address.is_none() {
+                if depositor_token_address.is_some() {
                     let token_mint_addr_str = depositor_token_address.unwrap();
                     depositor_token_addr = match Pubkey::from_str(&token_mint_addr_str) {
                         Ok(pk) => pk,
@@ -166,10 +166,8 @@ impl TxCommands {
                         }
                     };
                 } else {
-                    depositor_token_addr = get_associated_token_address(
-                        &ctx.key.deposit_key().pubkey(),
-                        &token_mint_addr,
-                    );
+                    depositor_token_addr =
+                        get_associated_token_address(&ctx.key.key().pubkey(), &token_mint_addr);
                 }
 
                 let mut serialized_data = match create_deposit_instructions_data(

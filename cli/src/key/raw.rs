@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use super::KeyStorage;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoredKeypair {
     pub key: Vec<u8>,
     pub deposit_key: Vec<u8>,
@@ -29,35 +29,23 @@ impl StoredKeypair {
     pub fn new() -> Self {
         Self {
             key: Keypair::new().to_bytes().to_vec(),
-            deposit_key: Keypair::new().to_bytes().to_vec(),
-            view_key: Keypair::new().to_bytes().to_vec(),
-            spend_key: Keypair::new().to_bytes().to_vec(),
+            deposit_key: Keypair::new().to_bytes()[0..32].to_vec(),
+            view_key: Keypair::new().to_bytes()[0..32].to_vec(),
+            spend_key: Keypair::new().to_bytes()[0..32].to_vec(),
         }
     }
 
     pub fn from(key: Keypair) -> Self {
         Self {
             key: key.to_bytes().to_vec(),
-            deposit_key: Keypair::new().to_bytes().to_vec(),
-            view_key: Keypair::new().to_bytes().to_vec(),
-            spend_key: Keypair::new().to_bytes().to_vec(),
+            deposit_key: Keypair::new().to_bytes()[0..32].to_vec(),
+            view_key: Keypair::new().to_bytes()[0..32].to_vec(),
+            spend_key: Keypair::new().to_bytes()[0..32].to_vec(),
         }
     }
 
     pub fn key(&self) -> Keypair {
         Keypair::from_bytes(&self.key).unwrap()
-    }
-
-    pub fn deposit_key(&self) -> Keypair {
-        Keypair::from_bytes(&self.deposit_key).unwrap()
-    }
-
-    pub fn spend_key(&self) -> Keypair {
-        Keypair::from_bytes(&self.spend_key).unwrap()
-    }
-
-    pub fn view_key(&self) -> Keypair {
-        Keypair::from_bytes(&self.view_key).unwrap()
     }
 }
 

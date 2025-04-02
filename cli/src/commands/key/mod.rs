@@ -77,6 +77,6 @@ fn create<T: KeyStorage>(storage: T, name: String) -> Result<()> {
 
 fn show<T: KeyStorage>(storage: T, name: String) -> Result<()> {
     let keypair = storage.load_keypair(&name)?;
-    println!("Loaded key {}: {:?}", name, keypair.deposit_key().pubkey());
+    println!("Loaded key {}: {:?}", name, keypair.key().pubkey());
     Ok(())
 }
