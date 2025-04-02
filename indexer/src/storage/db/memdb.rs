@@ -1,19 +1,12 @@
-use std::{error::Error, str::FromStr};
+
+use std::collections::HashMap;
 
 use axum::Json;
 use base64::{Engine as _, engine::general_purpose};
 use client::merkle::MerkleTreeSparse;
-use futures::StreamExt;
-use solana_client::{
-    nonblocking::{pubsub_client::PubsubClient, rpc_client::RpcClient},
-    rpc_config::RpcTransactionLogsConfig,
-};
-use solana_sdk::{commitment_config::CommitmentConfig, pubkey::Pubkey, signature::Signature};
-use solana_transaction_status::UiTransactionEncoding;
-use std::collections::HashMap;
 use types::UTXO;
 
-use super::RawData;
+use crate::client::RawData;
 use crate::Data;
 
 pub struct MemDb {
@@ -22,13 +15,13 @@ pub struct MemDb {
 }
 
 impl MemDb {
-    pub async fn new(rpc_url: &str, ws_url: &str) -> Self {
+    pub fn new() -> Self {
         let tree = MerkleTreeSparse::new(0);
 
-        Ok(SolanaClient {
+        MemDb {
             tree,
             utxos: HashMap::new(),
-        })
+        }
     }
 
     pub fn insert(&mut self, leafs: Vec<Vec<u8>>) -> HashMap<Vec<u8>, u64> {

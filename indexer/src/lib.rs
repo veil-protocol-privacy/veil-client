@@ -1,13 +1,38 @@
-use std::fs;
+use axum::Json;
 use serde::Serialize;
+use std::{collections::HashMap, fs};
+use storage::db::memdb::MemDb;
 use tokio::sync::Mutex;
+use types::UTXO;
 
+pub mod api_handler;
 pub mod client;
 pub mod event;
 pub mod storage;
-pub mod api_handler;
 
 const CONTENT_LENGTH: usize = 96;
+
+pub type MemState = Mutex<MemDb>;
+
+pub async fn insert(state: MemState, leafs: Vec<Vec<u8>>) -> HashMap<Vec<u8>, u64> {
+    let mut db = state.lock().await;
+    (*db).insert(leafs)
+}
+
+pub async fn root(state: MemState) -> Vec<u8> {
+    let db = state.lock().await;
+    db.root()
+}
+
+pub async fn insert_utxo(state: MemState, leaf_index: u64, utxo: UTXO) {
+    let mut db = state.lock().await;
+    (*db).insert_utxo(leaf_index, utxo)
+}
+
+pub async fn to_json(state: MemState) -> Json<Data> {
+    let db = state.lock().await;
+    (*db).to_json()
+}
 
 // Define application state
 pub type AppState = Mutex<String>;
