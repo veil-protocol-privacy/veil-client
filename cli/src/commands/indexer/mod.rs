@@ -60,12 +60,8 @@ impl IndexerCommands {
                     Err(err) => return println!("{}", err.to_string()),
                 };
                 
-                let decode = match general_purpose::STANDARD.decode(body.data) {
-                    Ok(data) => data,
-                    Err(err) => return println!("{}", err.to_string()),
-                }; 
-                
-                println!("{:?}", decode)
+                // return base64 string of the root
+                println!("{:?}", body.data)
             }
         }
     }

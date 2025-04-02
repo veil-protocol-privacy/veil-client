@@ -76,6 +76,6 @@ pub fn read_json_file(
     }
 }
 
-pub fn get_proof_from_file(file_path: String) -> Result<Vec<u8>, String> {
+pub fn get_proof_from_file(_file_path: String) -> Result<Vec<u8>, String> {
     Ok(vec![])
 }
