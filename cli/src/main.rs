@@ -92,6 +92,7 @@ async fn main() {
         client: solana_client,
         program_id: cli.program_id,
         key,
+        indexer_api: "http://127.0.0.1:3000".to_string(),
     };
 
     match cli.command {
@@ -107,7 +108,7 @@ async fn main() {
             ProofCommands::handle_command(command);
         }
         Commands::Indexer { command } => {
-            IndexerCommands::hanđle_command(command);
+            IndexerCommands::handle_command(command, &ctx).await;
         }
         Commands::Tx { command } => {
             TxCommands::handle_command(command, &ctx).await;

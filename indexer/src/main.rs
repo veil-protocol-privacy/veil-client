@@ -2,7 +2,7 @@ use axum::{Router, routing::get};
 use base64::Engine as _;
 use base64::engine::general_purpose;
 use indexer::{
-    AppState, MemState,
+    AppState,
     api_handler::handler::{leafs, roots},
     client::{
         DEPOSIT_EVENT, NULLIFIERS_EVENT, TRANSFER_EVENT, WITHDRAW_EVENT, solana::SolanaClient,
@@ -11,7 +11,6 @@ use indexer::{
         Event, decrypt_deposit_cipher_text, decrypt_transaction_cipher_text,
         get_nullifiers_from_event,
     },
-    insert,
     storage::db::memdb::MemDb,
 };
 use solana_sdk::pubkey::Pubkey;
@@ -36,7 +35,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let solana_client = SolanaClient::new(RPC_URL, WS_URL);
     let client = Arc::new(solana_client.await?);
-    let memdb: Arc<MemState> = Arc::new(Mutex::new(MemDb::new()));
+    let memdb = Arc::new(Mutex::new(MemDb::new()));
 
     let (tx, mut rx) = mpsc::channel(100);
 
@@ -83,7 +82,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         let (utxo, _tree_num, _start_position) =
                             match decrypt_deposit_cipher_text(KEY_PATH.to_string(), decoded) {
                                 Ok(data) => data,
-                                Err(_err) => continue,
+                                Err(err) => {
+                                    println!("error decrypting ciphertext: {}", err.to_string());
+
+                                    continue;
+                                },
                             };
 
                         let mut db = memdb.lock().await;
@@ -105,7 +108,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         let (utxos, leafs, _tree_num, _start_position) =
                             match decrypt_transaction_cipher_text(KEY_PATH.to_string(), decoded) {
                                 Ok(data) => data,
-                                Err(_err) => continue,
+                                Err(err) => {
+                                    println!("error decrypting ciphertext: {}", err.to_string());
+
+                                    continue
+                                },
                             };
 
                         let mut db = memdb.lock().await;
@@ -125,9 +132,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             if log.contains(&NULLIFIERS_EVENT.to_string()) {
                 if let Some(parsed_event) = Event::parse_event(&log) {
                     if let Ok(decoded) = general_purpose::STANDARD.decode(parsed_event.value) {
-                        let nullifiers = match get_nullifiers_from_event(decoded) {
+                        let _nullifiers = match get_nullifiers_from_event(decoded) {
                             Ok(data) => data,
-                            Err(err) => continue,
+                            Err(_err) => continue,
                         };
                     }
                 }
