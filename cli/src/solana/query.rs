@@ -1,7 +1,9 @@
 use super::SolanaClient;
 use borsh::BorshDeserialize;
 use darksol::{derive_pda, state::CommitmentsManagerAccount};
-use solana_sdk::{instruction::AccountMeta, program_error::ProgramError, pubkey::Pubkey, system_program};
+use solana_sdk::{
+    instruction::AccountMeta, program_error::ProgramError, pubkey::Pubkey, system_program,
+};
 use spl_associated_token_account::get_associated_token_address;
 use spl_token::ID as TOKEN_PROGRAM_ID;
 
@@ -201,14 +203,16 @@ impl SolanaClient {
         let mut account_metas: Vec<AccountMeta> = vec![];
 
         let (funding_pda, _bump_seed) = Pubkey::find_program_address(&[b"funding_pda"], program_id);
-        account_metas.push( AccountMeta::new(funding_pda, true));
+        account_metas.push(AccountMeta::new(funding_pda, true));
 
         let (commitments_pda, _bump_seed) = derive_pda(1, program_id);
-        account_metas.push( AccountMeta::new(commitments_pda, false));
+        account_metas.push(AccountMeta::new(commitments_pda, false));
 
         let (commitments_manager_pda, _bump_seed) =
             Pubkey::find_program_address(&[b"commitments_manager_pda"], program_id);
-            account_metas.push( AccountMeta::new(commitments_manager_pda, false));
+        account_metas.push(AccountMeta::new(commitments_manager_pda, false));
+
+        account_metas.push(AccountMeta::new(system_program::ID, false));
 
         Ok(account_metas)
     }

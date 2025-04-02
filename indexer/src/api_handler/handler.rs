@@ -14,7 +14,7 @@ fn get_raw_data(data_str: String) -> RawData {
 }
 
 pub async fn roots(State(state): State<Arc<AppState>>) -> Json<Data> {
-    let state = state.index.lock().await;
+    let state = state.lock().await;
 
     let raw_data = get_raw_data(state.clone());
     let root = raw_data.tree_data.root();
@@ -24,7 +24,7 @@ pub async fn roots(State(state): State<Arc<AppState>>) -> Json<Data> {
 }
 
 pub async fn leafs(State(state): State<Arc<AppState>>) -> Json<Data> {
-    let state = state.index.lock().await;
+    let state = state.lock().await;
 
     let raw_data = get_raw_data(state.clone());
     let utxos = raw_data.utxos_data;

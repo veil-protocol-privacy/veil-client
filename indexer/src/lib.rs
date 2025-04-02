@@ -10,9 +10,7 @@ pub mod api_handler;
 const CONTENT_LENGTH: usize = 96;
 
 // Define application state
-pub struct AppState {
-    pub index: Mutex<String>,
-}
+pub type AppState = Mutex<String>;
 
 #[derive(Serialize)]
 pub struct Data {

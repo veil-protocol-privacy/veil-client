@@ -2,11 +2,15 @@ use axum::{Router, routing::get};
 use base64::Engine as _;
 use base64::engine::general_purpose;
 use indexer::{
-    api_handler::handler::{leafs, roots}, client::{
-        solana::SolanaClient, DEPOSIT_EVENT, NULLIFIERS_EVENT, TRANSFER_EVENT, WITHDRAW_EVENT
-    }, event::{
-        decrypt_deposit_cipher_text, decrypt_transaction_cipher_text, get_nullifiers_from_event, Event
-    }, AppState
+    AppState,
+    api_handler::handler::{leafs, roots},
+    client::{
+        DEPOSIT_EVENT, NULLIFIERS_EVENT, TRANSFER_EVENT, WITHDRAW_EVENT, solana::SolanaClient,
+    },
+    event::{
+        Event, decrypt_deposit_cipher_text, decrypt_transaction_cipher_text,
+        get_nullifiers_from_event,
+    },
 };
 use solana_sdk::pubkey::Pubkey;
 use std::{error::Error, str::FromStr};
@@ -47,27 +51,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
         async move { client.fetch_historical_events(program_id, tx).await }
     });
 
-    // get initial json state
-    let client_json_data = client.to_json();
+    // // get initial json state
+    // let client_json_data = client.to_json();
 
-    // Create shared state
-    let shared_state = Arc::new(AppState {
-        index: Mutex::new(client_json_data.data.clone()),
-    });
+    // // Create shared state
+    // let shared_state: Arc<AppState> = Arc::new( 
+    //     Mutex::new(client_json_data.data.clone()),
+    // );
 
-    let worker_state = Arc::clone(&shared_state);
+    // let worker_state = Arc::clone(&shared_state);
 
-    // start api server
-    let app = Router::new()
-        .route("/root", get(roots))
-        .route("/notes", get(leafs))
-        .with_state(shared_state);
+    // // start api server
+    // let app = Router::new()
+    //     .route("/root", get(roots))
+    //     .route("/notes", get(leafs))
+    //     .with_state(shared_state);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    let listener = TcpListener::bind(addr).await.unwrap();
-    println!("Listening on {}", addr);
+    // let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    // let listener = TcpListener::bind(addr).await.unwrap();
+    // println!("Listening on {}", addr);
 
-    axum::serve(listener, app).await.unwrap();
+    // axum::serve(listener, app).await.unwrap();
 
     // Process received logs
     while let Some(logs) = rx.recv().await {
@@ -75,17 +79,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
             // if log.contains(&DEPOSIT_EVENT.to_string()) {
             //     if let Some(parsed_event) = Event::parse_event(&log) {
             //         if let Ok(decoded) = general_purpose::STANDARD.decode(parsed_event.value) {
-            //             let (utxo, tree_num, start_position) =
+            //             let (utxo, _tree_num, _start_position) =
             //                 match decrypt_deposit_cipher_text(KEY_PATH.to_string(), decoded) {
             //                     Ok(data) => data,
-            //                     Err(err) => continue,
+            //                     Err(_err) => continue,
             //                 };
 
-            //             client.insert(vec![utxo.utxo_hash()]);
-            //             client.insert_utxo(leaf_index, utxo);
+            //             let index_map = client.insert(vec![utxo.utxo_hash()]);
+            //             let index = index_map.get(&utxo.utxo_hash()).unwrap();
+            //             client.insert_utxo(*index, utxo);
 
             //             // update app state
-            //             update_index_state(worker_state, client.to_json().data);
+            //             update_index_state(&worker_state, client.to_json().data.clone());
             //         }
             //     }
             // }
@@ -95,20 +100,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
             // {
             //     if let Some(parsed_event) = Event::parse_event(&log) {
             //         if let Ok(decoded) = general_purpose::STANDARD.decode(parsed_event.value) {
-            //             let (utxos, leafs, tree_num, start_position) =
+            //             let (utxos, leafs, _tree_num, _start_position) =
             //                 match decrypt_transaction_cipher_text(KEY_PATH.to_string(), decoded) {
             //                     Ok(data) => data,
-            //                     Err(err) => continue,
+            //                     Err(_err) => continue,
             //                 };
 
-            //             client.insert(leafs);
+            //             let index_map = client.insert(leafs);
 
-            //             utxos.iter().for_each(|utxo | {
-            //                 client.insert_utxo(leaf_index, utxo.clone());
+            //             utxos.iter().for_each(|utxo| {
+            //                 let index = index_map.get(&utxo.utxo_hash()).unwrap();
+            //                 client.insert_utxo(*index, utxo.clone());
             //             });
 
             //             // update app state
-            //             update_index_state(worker_state, client.to_json().data);
+            //             update_index_state(&worker_state, client.to_json().data.clone());
             //         }
             //     }
             // }
@@ -129,7 +135,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn update_index_state(state: Arc<AppState>, new_data: String) {
-    let mut index = state.index.lock().await;
+async fn update_index_state(state: &Arc<AppState>, new_data: String) {
+    let mut index = state.lock().await;
     *index = new_data;
 }

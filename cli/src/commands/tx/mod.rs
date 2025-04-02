@@ -512,48 +512,6 @@ impl TxCommands {
                 // commitments manager account
                 // system program
 
-                let manager_space = 8; 
-                let manager_rent_exempt_balance = ctx
-                    .client
-                    .client
-                    .get_minimum_balance_for_rent_exemption(manager_space)
-                    .await
-                    .unwrap();
-
-                let (funding_pda, _bump_seed) =
-                    Pubkey::find_program_address(&[b"funding_pda"], &program_id);
-
-                let (commitments_pda, _bump_seed) = derive_pda(1, &program_id);
-
-                let (commitments_manager_pda, _bump_seed) =
-                    Pubkey::find_program_address(&[b"commitments_manager_pda"], &program_id);
-
-                // Create the new account instruction
-                let create_manager_account_ix = system_instruction::create_account(
-                    &funding_pda,
-                    &commitments_manager_pda,
-                    manager_rent_exempt_balance,
-                    manager_space as u64,
-                    &program_id, // Change this to your program's ID if needed
-                );
-
-                let commitment_space = 8; 
-                let commitment_rent_exempt_balance = ctx
-                    .client
-                    .client
-                    .get_minimum_balance_for_rent_exemption(manager_space)
-                    .await
-                    .unwrap();
-
-                // Create the new account instruction
-                let create_commitment_account_ix = system_instruction::create_account(
-                    &funding_pda,
-                    &commitments_pda,
-                    commitment_rent_exempt_balance,
-                    commitment_space as u64,
-                    &program_id, // Change this to your program's ID if needed
-                );
-
                 let accounts = ctx
                     .client
                     .get_initialize_account_metas(&program_id)
@@ -567,7 +525,7 @@ impl TxCommands {
                     data: vec![3],
                 };
 
-                let message = Message::new(&[create_manager_account_ix, create_commitment_account_ix, instruction], Some(&ctx.key.key().pubkey()));
+                let message = Message::new(&[instruction], Some(&ctx.key.key().pubkey()));
                 let mut transaction = Transaction::new_unsigned(message);
 
                 let recent_blockhash = ctx.client.client.get_latest_blockhash().await.unwrap();

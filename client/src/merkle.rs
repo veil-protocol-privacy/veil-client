@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use primitive_types::U256;
 use types::hash_left_right;
@@ -52,17 +54,21 @@ impl<const TREE_DEPTH: usize> MerkleTreeSparse<TREE_DEPTH> {
     pub fn insert(
         &mut self,
         leaf_nodes: Vec<Vec<u8>>,
-    ) {
+    ) -> HashMap<Vec<u8>, u64> {
+        let mut index_map: HashMap<Vec<u8>, u64> = HashMap::new();
         if leaf_nodes.len() == 0 {
-            return;
+            return index_map;
         }
 
         leaf_nodes.iter().for_each(| leaf | {
             self.tree[0].push(leaf.clone());
+            index_map.insert(leaf.clone(), self.next_leaf_index as u64);
+            self.next_leaf_index += 1;
         });
 
-        self.next_leaf_index += leaf_nodes.len();
         self.rebuild_sparse_tree();
+
+        index_map
     }
 
     fn rebuild_sparse_tree(
