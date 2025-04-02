@@ -1,8 +1,7 @@
 use super::SolanaClient;
 use borsh::BorshDeserialize;
 use darksol::{derive_pda, state::CommitmentsManagerAccount};
-use solana_program::system_program;
-use solana_sdk::{instruction::AccountMeta, program_error::ProgramError, pubkey::Pubkey};
+use solana_sdk::{instruction::AccountMeta, program_error::ProgramError, pubkey::Pubkey, system_program};
 use spl_associated_token_account::get_associated_token_address;
 use spl_token::ID as TOKEN_PROGRAM_ID;
 
@@ -199,41 +198,17 @@ impl SolanaClient {
         &self,
         program_id: &Pubkey,
     ) -> Result<Vec<AccountMeta>, ProgramError> {
-        let mut query_addresses: Vec<Pubkey> = vec![];
         let mut account_metas: Vec<AccountMeta> = vec![];
 
         let (funding_pda, _bump_seed) = Pubkey::find_program_address(&[b"funding_pda"], program_id);
-        query_addresses.push(funding_pda);
+        account_metas.push( AccountMeta::new(funding_pda, true));
 
         let (commitments_pda, _bump_seed) = derive_pda(1, program_id);
-        query_addresses.push(commitments_pda);
+        account_metas.push( AccountMeta::new(commitments_pda, false));
 
         let (commitments_manager_pda, _bump_seed) =
             Pubkey::find_program_address(&[b"commitments_manager_pda"], program_id);
-        query_addresses.push(commitments_manager_pda);
-
-        let (commitments_manager_pda, _bump_seed) =
-            Pubkey::find_program_address(&[b"commitments_manager_pda"], program_id);
-        query_addresses.push(commitments_manager_pda);
-
-        query_addresses.push(system_program::ID);
-
-        for idx in 0..query_addresses.len() {
-            match self.client.get_account(&query_addresses[idx]).await {
-                Ok(account) => {
-                    let account_meta = if account.executable {
-                        AccountMeta::new(query_addresses[idx], false) // If executable, just readable
-                    } else {
-                        AccountMeta::new_readonly(query_addresses[idx], false) // Non-executable: read-only
-                    };
-
-                    account_metas.push(account_meta);
-                }
-                Err(err) => {
-                    println!("❌ Error fetching account info: {}", err);
-                }
-            }
-        }
+            account_metas.push( AccountMeta::new(commitments_manager_pda, false));
 
         Ok(account_metas)
     }
