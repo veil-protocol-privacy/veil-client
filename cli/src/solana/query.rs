@@ -199,11 +199,14 @@ impl SolanaClient {
     pub async fn get_initialize_account_metas(
         &self,
         program_id: &Pubkey,
+        payer: Pubkey,
     ) -> Result<Vec<AccountMeta>, ProgramError> {
         let mut account_metas: Vec<AccountMeta> = vec![];
 
+        account_metas.push(AccountMeta::new(payer, true));
+
         let (funding_pda, _bump_seed) = Pubkey::find_program_address(&[b"funding_pda"], program_id);
-        account_metas.push(AccountMeta::new(funding_pda, true));
+        account_metas.push(AccountMeta::new(funding_pda, false));
 
         let (commitments_pda, _bump_seed) = derive_pda(1, program_id);
         account_metas.push(AccountMeta::new(commitments_pda, false));
