@@ -1,15 +1,13 @@
 use rand::Rng;
 use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
-use merkle::{MerkleProof, MerkleTreeSparse};
+use client::merkle::{MerkleProof, MerkleTreeSparse};
 use types::{keccak, poseidon, utxo::UTXO, Arguments, CipherText, PrivateData, PublicData};
-
-pub mod merkle;
 
 /// The ELF (executable and linkable format) file for the Succinct RISC-V zkVM.
 pub const METHOD_ELF: &[u8] = include_elf!("methods");
 
 fn generate_random_bytes(length: usize) -> Vec<u8> {
-    let mut rng = rand::rng();
+    let mut rng: rand::prelude::ThreadRng = rand::rng();
     (0..length).map(|_| rng.random()).collect()
 }
 

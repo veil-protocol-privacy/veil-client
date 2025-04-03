@@ -5,7 +5,7 @@ use darksol::{
 use solana_sdk::pubkey::Pubkey;
 use types::{generate_nullifier, utxo::UTXO};
 
-use crate::{TransferInput, TransferOutput, utils::generate_random_bytes};
+use crate::utils::{TransferInput, TransferOutput, generate_random_bytes};
 
 pub fn create_deposit_instructions_data(
     token_id: &Pubkey,
@@ -214,7 +214,6 @@ pub fn create_withdraw_instructions_data(
     commiments.iter().for_each(|commitment| {
         withdraw_request.push_encrypted_commitment(commitment.clone());
     });
-
 
     let instructions_data = match borsh::to_vec(&withdraw_request) {
         Ok(data) => data,

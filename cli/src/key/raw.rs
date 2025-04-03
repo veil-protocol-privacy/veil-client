@@ -1,15 +1,18 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use solana_sdk::signature::{Keypair, Signer};
+use solana_sdk::signature::Keypair;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
 use super::KeyStorage;
 
-#[derive(Serialize, Deserialize)]
-struct StoredKeypair {
-    secret: Vec<u8>,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StoredKeypair {
+    pub key: Vec<u8>,
+    pub deposit_key: Vec<u8>,
+    pub view_key: Vec<u8>,
+    pub spend_key: Vec<u8>,
 }
 
 pub struct RawKeyStorage {
@@ -22,8 +25,32 @@ impl RawKeyStorage {
     }
 }
 
+impl StoredKeypair {
+    pub fn new() -> Self {
+        Self {
+            key: Keypair::new().to_bytes().to_vec(),
+            deposit_key: Keypair::new().to_bytes()[0..32].to_vec(),
+            view_key: Keypair::new().to_bytes()[0..32].to_vec(),
+            spend_key: Keypair::new().to_bytes()[0..32].to_vec(),
+        }
+    }
+
+    pub fn from(key: Keypair) -> Self {
+        Self {
+            key: key.to_bytes().to_vec(),
+            deposit_key: Keypair::new().to_bytes()[0..32].to_vec(),
+            view_key: Keypair::new().to_bytes()[0..32].to_vec(),
+            spend_key: Keypair::new().to_bytes()[0..32].to_vec(),
+        }
+    }
+
+    pub fn key(&self) -> Keypair {
+        Keypair::from_bytes(&self.key).unwrap()
+    }
+}
+
 impl KeyStorage for RawKeyStorage {
-    fn save_keypair(&self, name: &str, keypair: &Keypair) -> Result<()> {
+    fn save_keypair(&self, name: &str, keypair: &StoredKeypair) -> Result<()> {
         let raw_path = self.path.join("raw");
         fs::create_dir_all(&raw_path)?;
         let key_path = raw_path.join(format!("{}.json", name));
@@ -33,10 +60,7 @@ impl KeyStorage for RawKeyStorage {
             return Ok(());
         }
 
-        let stored = StoredKeypair {
-            secret: keypair.to_bytes().to_vec(),
-        };
-        let json = serde_json::to_string(&stored)?;
+        let json = serde_json::to_string(&keypair)?;
         let mut file = File::create(&key_path)?;
         file.write_all(json.as_bytes())?;
 
@@ -45,15 +69,14 @@ impl KeyStorage for RawKeyStorage {
         Ok(())
     }
 
-    fn load_keypair(&self, name: &str) -> Result<Keypair> {
+    fn load_keypair(&self, name: &str) -> Result<StoredKeypair> {
         let raw_path = self.path.join("raw");
         fs::create_dir_all(&raw_path)?;
         let key_path = raw_path.join(format!("{}.json", name));
         let mut file = File::open(key_path).context("Key not found")?;
         let mut json = String::new();
         file.read_to_string(&mut json)?;
-        let stored: StoredKeypair = serde_json::from_str(&json)?;
-        let keypair = Keypair::from_bytes(&stored.secret)?;
+        let keypair: StoredKeypair = serde_json::from_str(&json)?;
         Ok(keypair)
     }
 

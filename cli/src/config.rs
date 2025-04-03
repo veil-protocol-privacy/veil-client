@@ -1,15 +1,21 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+use std::fs;
 use std::path::PathBuf;
-use std::{default, fs};
 
-use crate::storage::KeyStorageType;
+use crate::key::KeyStorageType;
+
+const DEFAULT_RPC_URL: &str = "http://localhost:8899";
+const DEFAULT_KEY_STORAGE: KeyStorageType = KeyStorageType::Raw;
+const DEFAULT_KEY: &str = "id";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CliConfig {
     pub key_path: String,
     pub key_storage: KeyStorageType,
     pub key: String,
+
+    pub rpc_url: String,
 }
 
 impl CliConfig {
@@ -61,8 +67,10 @@ impl Default for CliConfig {
                 .join("veil/keys")
                 .to_string_lossy()
                 .into_owned(),
-            key_storage: KeyStorageType::Raw,
-            key: "id".to_string(),
+            key_storage: DEFAULT_KEY_STORAGE,
+            key: DEFAULT_KEY.to_string(),
+
+            rpc_url: DEFAULT_RPC_URL.to_string(),
         }
     }
 }

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use primitive_types::U256;
 use types::hash_left_right;
@@ -16,11 +18,10 @@ pub struct MerkleProof {
     pub index: u64,
     pub element: Vec<u8>,
     pub path: Vec<Vec<u8>>,
-    pub root: Vec<u8>
+    pub root: Vec<u8>,
 }
 
 impl<const TREE_DEPTH: usize> MerkleTreeSparse<TREE_DEPTH> {
-
     /// Create a new empty Merkle Tree
     pub fn new(tree_number: u64) -> Self {
         let zero_value = u256_to_bytes(ZERO_VALUE).to_vec();
@@ -49,78 +50,76 @@ impl<const TREE_DEPTH: usize> MerkleTreeSparse<TREE_DEPTH> {
         }
     }
 
-    pub fn insert(
-        &mut self,
-        leaf_nodes: Vec<Vec<u8>>,
-    ) {
+    pub fn insert(&mut self, leaf_nodes: Vec<Vec<u8>>) -> HashMap<Vec<u8>, u64> {
+        let mut index_map: HashMap<Vec<u8>, u64> = HashMap::new();
         if leaf_nodes.len() == 0 {
-            return;
+            return index_map;
         }
 
-        leaf_nodes.iter().for_each(| leaf | {
+        leaf_nodes.iter().for_each(|leaf| {
             self.tree[0].push(leaf.clone());
+            index_map.insert(leaf.clone(), self.next_leaf_index as u64);
+            self.next_leaf_index += 1;
         });
 
-        self.next_leaf_index += leaf_nodes.len();
         self.rebuild_sparse_tree();
+
+        index_map
     }
 
-    fn rebuild_sparse_tree(
-        &mut self
-    ) {
-        for level in 0..TREE_DEPTH-1 {
-            self.tree[level+1].clear();
+    fn rebuild_sparse_tree(&mut self) {
+        for level in 0..TREE_DEPTH - 1 {
+            self.tree[level + 1].clear();
             let level_subtree = self.tree[level].clone();
             for pos in (0..level_subtree.len()).step_by(2) {
                 if level_subtree.len() - 1 == pos {
-                    self.tree[level+1].push(
-                        hash_left_right(level_subtree[pos].clone(), self.zeros[level].clone())
-                    );
+                    self.tree[level + 1].push(hash_left_right(
+                        level_subtree[pos].clone(),
+                        self.zeros[level].clone(),
+                    ));
                 } else {
-                    self.tree[level+1].push(
-                        hash_left_right(level_subtree[pos].clone(), level_subtree[pos + 1].clone())
-                    );
+                    self.tree[level + 1].push(hash_left_right(
+                        level_subtree[pos].clone(),
+                        level_subtree[pos + 1].clone(),
+                    ));
                 }
             }
         }
     }
 
-    pub fn generate_proof(
-        &self,
-        element: Vec<u8>
-    ) -> MerkleProof {
+    pub fn generate_proof(&self, element: Vec<u8>) -> MerkleProof {
         let mut path: Vec<Vec<u8>> = Vec::with_capacity(TREE_DEPTH);
 
-        let find = self.tree[0].iter().position(| leaf| leaf.eq(&element));
+        let find = self.tree[0].iter().position(|leaf| leaf.eq(&element));
         if find.is_none() {
             panic!("element not in merkle tree")
         }
 
         let mut index = find.unwrap();
-        for level in 0..TREE_DEPTH-1 {
+        for level in 0..TREE_DEPTH - 1 {
             if index % 2 == 0 {
                 if self.tree[level].len() - 1 <= index {
                     path.push(self.zeros[level].clone());
                 } else {
-                    path.push(self.tree[level][index+1].clone());
+                    path.push(self.tree[level][index + 1].clone());
                 }
             } else {
-                path.push(self.tree[level][index-1].clone());
+                path.push(self.tree[level][index - 1].clone());
             }
             index = index / 2;
         }
 
-        MerkleProof { 
+        MerkleProof {
             index: find.unwrap() as u64,
             element,
             path,
-            root: self.root()
+            root: self.root(),
         }
     }
 
     /// Get the Merkle root
     pub fn root(&self) -> Vec<u8> {
-        self.tree[TREE_DEPTH -1][0].clone()
+        self.tree[TREE_DEPTH - 1][0].clone()
     }
 }
 
@@ -140,23 +139,31 @@ pub fn u256_to_bytes(value: U256) -> [u8; 32] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use starknet_crypto::{Felt, poseidon_hash_many};
 
-    pub fn poseidon(
-        inputs: Vec<&[u8]>
-    ) -> Vec<u8> {
-        let inputs = inputs.iter().map(|input| {
-            let mut bytes = [0u8; 32];
-            if input.len() < 32 {
-                // fill from the last index
-                let start = 32 - input.len();
-                bytes[start..].copy_from_slice(&input[..]);
-            } else {
-                bytes.copy_from_slice(input);
-            };
-            Felt::from_bytes_be(&bytes)
-        }).collect::<Vec<Felt>>();
-        Vec::from(poseidon_hash_many(inputs.as_slice()).to_bytes_be())
+    pub fn poseidon(inputs: Vec<&[u8]>) -> Vec<u8> {
+        let inputs = inputs
+            .iter()
+            .map(|input| {
+                let mut bytes = Vec::new();
+                if input.len() < 32 {
+                    // fill from the last index
+                    let start = 32 - input.len();
+                    bytes[start..].copy_from_slice(&input[..]);
+                } else {
+                    bytes.copy_from_slice(input);
+                };
+                bytes
+            })
+            .collect::<Vec<Vec<u8>>>();
+        Vec::from(
+            solana_poseidon::hashv(
+                solana_poseidon::Parameters::Bn254X5,
+                solana_poseidon::Endianness::BigEndian,
+                &inputs.iter().map(|v| v.as_slice()).collect::<Vec<&[u8]>>(),
+            )
+            .unwrap()
+            .to_bytes(),
+        )
     }
 
     #[test]
@@ -175,7 +182,7 @@ mod tests {
 
         assert_eq!(zero_tree.root(), level_zero);
     }
-    
+
     #[test]
     fn test_insert() {
         const TREE_DEPTH: usize = 5;
@@ -196,7 +203,7 @@ mod tests {
                 tree.insert(insert_list);
             }
 
-            for i in  ((16 / gap) * gap)..16 {
+            for i in ((16 / gap) * gap)..16 {
                 let hash_i = poseidon(vec![&[i]]);
                 let insert_list = vec![hash_i];
                 tree.insert(insert_list);
@@ -219,7 +226,7 @@ mod tests {
         let mut tree = MerkleTreeSparse::<TREE_DEPTH>::new(0);
 
         let mut insert_list = vec![];
-        for i in 0..8{
+        for i in 0..8 {
             let hash_i = poseidon(vec![&[i]]);
             insert_list.push(hash_i);
         }
@@ -248,7 +255,7 @@ mod tests {
         let mut tree = MerkleTreeSparse::<TREE_DEPTH>::new(0);
 
         let mut insert_list = vec![];
-        for i in 0..8{
+        for i in 0..8 {
             let hash_i = poseidon(vec![&[i]]);
             insert_list.push(hash_i);
         }
@@ -270,21 +277,20 @@ mod tests {
     ) {
         let mut current_hash = leaf;
         let mut index = leaf_index;
-    
-        assert!(path.len() == (tree_depth-1) as usize);
-    
+
+        assert!(path.len() == (tree_depth - 1) as usize);
+
         for sibling in path.iter() {
             let (left, right) = if index % 2 == 0 {
                 (current_hash.clone(), sibling.clone())
             } else {
                 (sibling.clone(), current_hash.clone())
             };
-    
+
             current_hash = hash_left_right(left, right);
             index /= 2;
         }
-    
+
         assert_eq!(current_hash, root);
     }
-    
 }
