@@ -8,8 +8,11 @@ use cli::{
         tx::TxCommands,
     },
     config::CliConfig,
+    key::{
+        KeyStorage, KeyStorageType,
+        raw::{RawKeyStorage, StoredKeypair},
+    },
     solana::SolanaClient,
-    key::{KeyStorage, KeyStorageType, raw::RawKeyStorage},
 };
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::commitment_config::CommitmentConfig;
@@ -86,7 +89,12 @@ async fn main() {
         // KeyStorageType::Encrypted => unimplemented!(),
     };
 
-    let key = key_storage.load_keypair(&config.key).unwrap();
+    let key = key_storage.load_keypair(&config.key).unwrap_or_else(|_| {
+        key_storage
+            .save_keypair(&config.key, &StoredKeypair::new())
+            .unwrap();
+        key_storage.load_keypair(&config.key).unwrap()
+    });
 
     let ctx = CliContext {
         client: solana_client,

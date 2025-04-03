@@ -10,7 +10,7 @@ serde = { version = "1.0.200", default-features = false, features = ["derive"] }
 clap = { version = "4.0", features = ["derive", "env"] }
 tracing = "0.1.40"
 hex = "0.4.3"
-starknet-crypto = "0.7.4"
+solana-poseidon = {version = "2.2.6"}
 borsh = {version = "1.5.5", features = ["derive"]}
 primitive-types = "0.12"
 rand = "0.9.0"
