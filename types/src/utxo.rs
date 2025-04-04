@@ -1,5 +1,5 @@
 use crate::{
-    blind_keys, poseidon, share_key, CipherText, CommitmentPlainText, DepositCiphertext,
+    blind_keys, sha256, share_key, CipherText, CommitmentPlainText, DepositCiphertext,
     DepositPlainText,
 };
 use aes_gcm::{
@@ -49,7 +49,7 @@ impl UTXO {
     }
 
     pub fn nullifying_key(&self) -> Vec<u8> {
-        poseidon(vec![self.viewing_key.as_slice()])
+        sha256(vec![self.viewing_key.as_slice()])
     }
 
     pub fn spending_public_key(&self) -> Vec<u8> {
@@ -69,19 +69,19 @@ impl UTXO {
     pub fn master_public_key(&self) -> Vec<u8> {
         let spending_key = self.spending_public_key();
         let nullifying_key = self.nullifying_key();
-        poseidon(vec![spending_key.as_slice(), nullifying_key.as_slice()])
+        sha256(vec![spending_key.as_slice(), nullifying_key.as_slice()])
     }
 
     pub fn utxo_public_key(&self) -> Vec<u8> {
         let master_pubkey = self.master_public_key();
 
-        poseidon(vec![master_pubkey.as_slice(), self.random.as_slice()])
+        sha256(vec![master_pubkey.as_slice(), self.random.as_slice()])
     }
 
     pub fn nullifier(&self, leaf_index: u64) -> Vec<u8> {
         let nullifying_key = self.nullifying_key();
         let leaf_index_bytes = leaf_index.to_le_bytes().to_vec();
-        poseidon(vec![nullifying_key.as_slice(), leaf_index_bytes.as_slice()])
+        sha256(vec![nullifying_key.as_slice(), leaf_index_bytes.as_slice()])
     }
 
     pub fn utxo_hash(&self) -> Vec<u8> {
@@ -89,7 +89,7 @@ impl UTXO {
         let token_id = self.token_id.clone();
         let amount: Vec<u8> = self.amount.to_le_bytes().to_vec();
 
-        poseidon(vec![
+        sha256(vec![
             uxto_pubkey.as_slice(),
             token_id.as_slice(),
             amount.as_slice(),
@@ -111,7 +111,7 @@ impl UTXO {
                 .map(|output_hash| output_hash.as_slice()),
         );
 
-        let message_hash = poseidon(message_data);
+        let message_hash = sha256(message_data);
         let mut secret_key = [0u8; SECRET_KEY_LENGTH];
         secret_key.copy_from_slice(&self.spending_key);
         let mut signing_key: SigningKey = SigningKey::from_bytes(&secret_key);
@@ -185,10 +185,12 @@ impl UTXO {
 
         let plain_text = match CommitmentPlainText::try_from_slice(&decrypted_data) {
             Ok(text) => text,
-            Err(err) => return Err(format!(
-                "decrypted data not match with plain text structure: {}",
-                err
-            )),
+            Err(err) => {
+                return Err(format!(
+                    "decrypted data not match with plain text structure: {}",
+                    err
+                ))
+            }
         };
 
         let utxo = UTXO::new(
@@ -269,10 +271,12 @@ impl UTXO {
 
         let plain_text = match DepositPlainText::try_from_slice(&ciphertext.cipher) {
             Ok(text) => text,
-            Err(err) => return Err(format!(
-                "decrypted data not match with plain text structure: {}",
-                err
-            )),
+            Err(err) => {
+                return Err(format!(
+                    "decrypted data not match with plain text structure: {}",
+                    err
+                ))
+            }
         };
 
         let random = match cipher.decrypt(nonce, plain_text.encrypted_random.as_slice()) {

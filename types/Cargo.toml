@@ -10,4 +10,4 @@ curve25519-dalek = "4"
 sha2 = "0.10"
 sha3 = "0.10"
 aes-gcm = "0.10.3"
-solana-poseidon = { version = "2.2.6" }
+solana-sha256-hasher = "2.2.1"
