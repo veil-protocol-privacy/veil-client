@@ -138,33 +138,9 @@ pub fn u256_to_bytes(value: U256) -> [u8; 32] {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use types::sha256;
 
-    pub fn poseidon(inputs: Vec<&[u8]>) -> Vec<u8> {
-        let inputs = inputs
-            .iter()
-            .map(|input| {
-                let mut bytes = Vec::new();
-                if input.len() < 32 {
-                    // fill from the last index
-                    let start = 32 - input.len();
-                    bytes[start..].copy_from_slice(&input[..]);
-                } else {
-                    bytes.copy_from_slice(input);
-                };
-                bytes
-            })
-            .collect::<Vec<Vec<u8>>>();
-        Vec::from(
-            solana_poseidon::hashv(
-                solana_poseidon::Parameters::Bn254X5,
-                solana_poseidon::Endianness::BigEndian,
-                &inputs.iter().map(|v| v.as_slice()).collect::<Vec<&[u8]>>(),
-            )
-            .unwrap()
-            .to_bytes(),
-        )
-    }
+    use super::*;
 
     #[test]
     fn test_zero_tree() {
@@ -196,7 +172,7 @@ mod tests {
             for step in 0..(16 / gap) {
                 let mut insert_list = vec![];
                 for i in (step * gap)..((step + 1) * gap) {
-                    let hash_i = poseidon(vec![&[i]]);
+                    let hash_i = sha256(vec![&[i]]);
                     insert_list.push(hash_i);
                 }
 
@@ -204,7 +180,7 @@ mod tests {
             }
 
             for i in ((16 / gap) * gap)..16 {
-                let hash_i = poseidon(vec![&[i]]);
+                let hash_i = sha256(vec![&[i]]);
                 let insert_list = vec![hash_i];
                 tree.insert(insert_list);
             }
@@ -227,19 +203,19 @@ mod tests {
 
         let mut insert_list = vec![];
         for i in 0..8 {
-            let hash_i = poseidon(vec![&[i]]);
+            let hash_i = sha256(vec![&[i]]);
             insert_list.push(hash_i);
         }
 
         tree.insert(insert_list);
 
-        let hash_5 = poseidon(vec![&[5]]);
+        let hash_5 = sha256(vec![&[5]]);
         let mut path = Vec::with_capacity(5);
-        path.push(poseidon(vec![&[4]]));
-        path.push(hash_left_right(poseidon(vec![&[6]]), poseidon(vec![&[7]])));
+        path.push(sha256(vec![&[4]]));
+        path.push(hash_left_right(sha256(vec![&[6]]), sha256(vec![&[7]])));
 
-        let hash_01 = hash_left_right(poseidon(vec![&[0]]), poseidon(vec![&[1]]));
-        let hash_23 = hash_left_right(poseidon(vec![&[2]]), poseidon(vec![&[3]]));
+        let hash_01 = hash_left_right(sha256(vec![&[0]]), sha256(vec![&[1]]));
+        let hash_23 = hash_left_right(sha256(vec![&[2]]), sha256(vec![&[3]]));
         path.push(hash_left_right(hash_01, hash_23));
         path.push(tree.zeros[3].clone());
 
@@ -256,13 +232,13 @@ mod tests {
 
         let mut insert_list = vec![];
         for i in 0..8 {
-            let hash_i = poseidon(vec![&[i]]);
+            let hash_i = sha256(vec![&[i]]);
             insert_list.push(hash_i);
         }
 
         tree.insert(insert_list);
 
-        let hash_5 = poseidon(vec![&[5]]);
+        let hash_5 = sha256(vec![&[5]]);
         let proof = tree.generate_proof(hash_5.clone());
 
         merkle_proof_check(hash_5, proof.index, proof.root, proof.path, 5);

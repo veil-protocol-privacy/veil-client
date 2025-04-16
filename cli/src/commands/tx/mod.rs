@@ -3,9 +3,10 @@ use std::str::FromStr;
 use base64::{Engine as _, engine::general_purpose};
 use clap::Subcommand;
 use darksol::derive_pda;
+use solana_client::rpc_response::RpcSimulateTransactionResult;
 use solana_sdk::{
-    instruction::Instruction, message::Message, pubkey::Pubkey, signer::Signer, system_instruction,
-    system_program, transaction::Transaction,
+    compute_budget::ComputeBudgetInstruction, instruction::Instruction, message::Message,
+    pubkey::Pubkey, signer::Signer, system_instruction, system_program, transaction::Transaction,
 };
 use spl_associated_token_account::get_associated_token_address;
 
@@ -513,7 +514,7 @@ impl TxCommands {
 
                 let accounts = ctx
                     .client
-                    .get_initialize_account_metas(&program_id)
+                    .get_initialize_account_metas(&program_id, ctx.key.key().pubkey().clone())
                     .await
                     .unwrap();
 
@@ -524,10 +525,32 @@ impl TxCommands {
                     data: vec![3],
                 };
 
-                let message = Message::new(&[instruction], Some(&ctx.key.key().pubkey()));
+                let cu_ix = ComputeBudgetInstruction::set_compute_unit_limit(1_400_000u32);
+
+                let message = Message::new(&[cu_ix, instruction], Some(&ctx.key.key().pubkey()));
                 let mut transaction = Transaction::new_unsigned(message);
+                let recent_blockhash = ctx.client.client.get_latest_blockhash().await.unwrap();
+                transaction.sign(&[&ctx.key.key()], recent_blockhash);
+
+                let cu = ctx
+                    .client
+                    .client
+                    .simulate_transaction(&transaction)
+                    .await
+                    .unwrap();
+
+                if cu.value.err.is_some() {
+                    println!("❌ Transaction failed: {:?}", cu.value.logs);
+                    return;
+                }
+                println!("✅ Transaction successful! {:?}", cu.value);
+
+                // let cu_ix =
+                //     ComputeBudgetInstruction::set_compute_unit_limit(cu as u32 + 100_000u32);
 
                 let recent_blockhash = ctx.client.client.get_latest_blockhash().await.unwrap();
+
+                println!("recent blockhash: {:?}", recent_blockhash);
                 transaction.sign(&[&ctx.key.key()], recent_blockhash);
 
                 let signature = ctx

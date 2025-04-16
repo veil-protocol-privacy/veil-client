@@ -11,7 +11,7 @@ solana-sdk = { workspace = true }
 spl-token = { workspace = true, features = ["no-entrypoint"] }
 spl-associated-token-account = { workspace = true }
 
-darksol = {path="../../DarkSol/programs/DarkSol"}
+darksol = { workspace = true }
 types = { path = "../types" }
 rand = "0.9.0"
 borsh = "1.5.6"
