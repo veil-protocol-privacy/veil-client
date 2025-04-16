@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use base64::{Engine as _, engine::general_purpose};
 use clap::Subcommand;
 use darksol::derive_pda;
 use solana_client::rpc_response::RpcSimulateTransactionResult;
@@ -39,13 +40,6 @@ pub enum TxCommands {
         /// memo
         #[arg(short, long)]
         memo: String,
-        // /// file path to spending and viewing key
-        // #[arg(short, long)]
-        // svk_file_path: String,
-
-        // /// file path to keypair
-        // #[arg(short, long)]
-        // key_file_path: String,
     },
 
     /// Transfer money privately
@@ -59,6 +53,10 @@ pub enum TxCommands {
         #[arg(short, long)]
         receiver_viewing_public_key: String,
 
+        // merkle root of the user tree
+        #[arg(short, long)]
+        merkle_root: String,
+
         /// tree number
         #[arg(short, long)]
         tree_number: u64,
@@ -70,13 +68,6 @@ pub enum TxCommands {
         /// file path to json file contains all the inputs and outputs
         #[arg(short, long)]
         json_file_path: String,
-        // /// file path to spending and viewing key
-        // #[arg(short, long)]
-        // svk_file_path: String,
-
-        // /// file path to keypair
-        // #[arg(short, long)]
-        // key_file_path: String,
     },
 
     /// Withdraw fund to an account
@@ -95,6 +86,10 @@ pub enum TxCommands {
         #[arg(short, long)]
         receiver_token_account: Option<String>,
 
+        // merkle root of the user tree
+        #[arg(short, long)]
+        merkle_root: String,
+
         /// tree number
         #[arg(short, long)]
         tree_number: u64,
@@ -106,13 +101,6 @@ pub enum TxCommands {
         /// file path to json file contains all the inputs and outputs
         #[arg(short, long)]
         json_file_path: String,
-        // /// file path to spending and viewing key
-        // #[arg(short, long)]
-        // svk_file_path: String,
-
-        // /// file path to keypair
-        // #[arg(short, long)]
-        // key_file_path: String,
     },
 
     /// Initialize fund to an account
@@ -256,6 +244,7 @@ impl TxCommands {
                 json_file_path,
                 proof_file_path,
                 tree_number,
+                merkle_root,
             } => {
                 let program_id = match Pubkey::from_str(&ctx.program_id) {
                     Ok(pk) => pk,
@@ -270,17 +259,21 @@ impl TxCommands {
                 let token_mint_addr = match Pubkey::from_str(&token_mint_addr_str) {
                     Ok(pk) => pk,
                     Err(err) => {
-                        println!(
+                        return println!(
                             "{}",
                             format!("invalid token mint address: {}", err.to_string())
                         );
-
-                        return;
                     }
                 };
 
                 let (inputs, outputs) = read_json_file(json_file_path).unwrap();
                 let proof = get_proof_from_file(proof_file_path).unwrap();
+
+                // decode merkle root string
+                let decode = match general_purpose::STANDARD.decode(merkle_root) {
+                    Ok(data) => data,
+                    Err(err) => return println!("{}", err.to_string()),
+                };
 
                 let mut serialized_data = match create_transfer_instructions_data(
                     &token_mint_addr,
@@ -288,7 +281,7 @@ impl TxCommands {
                     proof,
                     inputs,
                     outputs,
-                    vec![],
+                    decode,
                     tree_number,
                     ctx.key.spend_key.clone(),
                     ctx.key.view_key.clone(),
@@ -365,6 +358,7 @@ impl TxCommands {
                 tree_number,
                 proof_file_path,
                 json_file_path,
+                merkle_root,
             } => {
                 let program_id = match Pubkey::from_str(&ctx.program_id) {
                     Ok(pk) => pk,
@@ -391,13 +385,19 @@ impl TxCommands {
                 let (inputs, _outputs) = read_json_file(json_file_path).unwrap();
                 let proof = get_proof_from_file(proof_file_path).unwrap();
 
+                // decode merkle root string
+                let decode = match general_purpose::STANDARD.decode(merkle_root) {
+                    Ok(data) => data,
+                    Err(err) => return println!("{}", err.to_string()),
+                };
+
                 let (mut serialized_data, insert_new_commitment) =
                     match create_withdraw_instructions_data(
                         &token_mint_addr,
                         proof,
                         amount,
                         inputs,
-                        vec![],
+                        decode,
                         tree_number,
                         ctx.key.spend_key.clone(),
                         ctx.key.view_key.clone(),

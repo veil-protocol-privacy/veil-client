@@ -1,3 +1,5 @@
+pub mod memdb;
+
 use super::Storage;
 use rocksdb::{DB, Options};
 
