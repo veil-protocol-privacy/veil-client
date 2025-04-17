@@ -15,7 +15,6 @@ solana-sdk.workspace = true
 solana-transaction-status = "2.2.4"
 tokio = "1.44.1"
 
-client = { path = "../client" }
 veil-types = { workspace = true }
 darksol = { workspace = true }
 borsh = "1.5.7"
