@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use primitive_types::U256;
-use types::hash_left_right;
+use veil_types::hash_left_right;
 
 // Merkle Tree Sparse for scan and find tree path
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
@@ -138,7 +138,7 @@ pub fn u256_to_bytes(value: U256) -> [u8; 32] {
 
 #[cfg(test)]
 mod tests {
-    use types::sha256;
+    use veil_types::sha256;
 
     use super::*;
 

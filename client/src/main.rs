@@ -1,7 +1,7 @@
 use client::merkle::{MerkleProof, MerkleTreeSparse};
 use rand::Rng;
 use sp1_sdk::{ProverClient, SP1Stdin, HashableKey};
-use types::{keccak, sha256, utxo::UTXO, Arguments, CipherText, PrivateData, PublicData};
+use veil_types::{keccak, sha256, utxo::UTXO, Arguments, CipherText, PrivateData, PublicData};
 
 /// The ELF (executable and linkable format) file for the Succinct RISC-V zkVM.
 pub const METHOD_ELF: &[u8] = include_bytes!("../elf/methods");

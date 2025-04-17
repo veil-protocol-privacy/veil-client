@@ -1,6 +1,6 @@
 use borsh::BorshDeserialize;
 use darksol::{DepositEvent, NullifierEvent, TransactionEvent};
-use types::{CipherText, DepositCiphertext, UTXO};
+use veil_types::{CipherText, DepositCiphertext, UTXO};
 
 use crate::get_key_from_file;
 

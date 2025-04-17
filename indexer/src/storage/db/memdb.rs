@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use axum::Json;
 use base64::{Engine as _, engine::general_purpose};
 use client::merkle::MerkleTreeSparse;
-use types::UTXO;
+use veil_types::UTXO;
 
 use crate::client::RawData;
 use crate::Data;

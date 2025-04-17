@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use borsh::{BorshSerialize, BorshDeserialize};
 use client::merkle::MerkleTreeSparse;
-use types::UTXO;
+use veil_types::UTXO;
 
 pub mod solana;
 
