@@ -1,10 +1,10 @@
 use client::merkle::{MerkleProof, MerkleTreeSparse};
 use rand::Rng;
-use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
+use sp1_sdk::{ProverClient, SP1Stdin, HashableKey};
 use types::{keccak, sha256, utxo::UTXO, Arguments, CipherText, PrivateData, PublicData};
 
 /// The ELF (executable and linkable format) file for the Succinct RISC-V zkVM.
-pub const METHOD_ELF: &[u8] = include_elf!("methods");
+pub const METHOD_ELF: &[u8] = include_bytes!("../elf/methods");
 
 fn generate_random_bytes(length: usize) -> Vec<u8> {
     let mut rng: rand::prelude::ThreadRng = rand::rng();
@@ -20,12 +20,24 @@ fn main() {
     let viewing_key_1 = generate_random_bytes(32);
     let viewing_key_2 = generate_random_bytes(32);
 
+    println!("spending_key_1: {:?}", spending_key_1.clone());
+    println!("spending_key_2: {:?}", spending_key_2.clone());
+    println!("viewing_key_1: {:?}", viewing_key_1.clone());
+    println!("viewing_key_2: {:?}", viewing_key_2.clone());
+
     let random_1 = generate_random_bytes(32);
     let random_2 = generate_random_bytes(32);
     let random_3 = generate_random_bytes(32);
 
+    println!("random_1: {:?}", random_1.clone());
+    println!("random_2: {:?}", random_2.clone());
+    println!("random_3: {:?}", random_3.clone());
+
     let token_id = generate_random_bytes(32);
     let nonce = generate_random_bytes(12);
+
+    println!("token_id: {:?}", token_id.clone());
+    println!("nonce: {:?}", nonce.clone());
 
     let mut tree: MerkleTreeSparse<32> = MerkleTreeSparse::new(0);
 
@@ -117,6 +129,7 @@ fn main() {
         .iter()
         .map(|utxo| utxo.clone().encrypt(viewing_key_1.clone()))
         .collect();
+    println!("ciphertexts: {:?}", ciphertexts);
 
     let pubkey = utxos_in[0].spending_public_key();
     let nullifying_key = utxos_in[0].nullifying_key();
@@ -163,6 +176,8 @@ fn main() {
     };
     let serialized_args = borsh::to_vec(&args).unwrap();
 
+    println!("args: {:?}", args);
+    println!("serialized_args: {:?}", serialized_args);
     // Setup the prover client.
     let client = ProverClient::from_env();
 
@@ -181,6 +196,8 @@ fn main() {
         .run()
         .expect("failed to generate proof");
 
+    proof.save("proof.bin").expect("failed to save proof");
+    println!("vk: {}", vk.bytes32());
     println!("Successfully generated proof!");
 
     // TODO: decypt vkey for program compatible
