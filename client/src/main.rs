@@ -1,4 +1,4 @@
-use client::merkle::{MerkleProof, MerkleTreeSparse};
+use veil_types::MerkleTreeSparse;
 use rand::Rng;
 use sp1_sdk::{ProverClient, SP1Stdin, HashableKey};
 use veil_types::{keccak, sha256, utxo::UTXO, Arguments, CipherText, PrivateData, PublicData};
@@ -15,29 +15,17 @@ fn main() {
     // Setup the logger.
     sp1_sdk::utils::setup_logger();
 
-    let spending_key_1 = generate_random_bytes(32);
-    let spending_key_2 = generate_random_bytes(32);
-    let viewing_key_1 = generate_random_bytes(32);
-    let viewing_key_2 = generate_random_bytes(32);
+    let spending_key_1 = vec![115, 174, 166, 214, 50, 27, 235, 19, 181, 112, 191, 33, 121, 246, 98, 67, 85, 126, 234, 211, 159, 202, 185, 134, 53, 109, 41, 45, 73, 218, 31, 218];
+    let spending_key_2 = vec![30, 16, 96, 72, 220, 113, 73, 111, 15, 147, 214, 92, 171, 174, 4, 112, 38, 142, 49, 205, 238, 205, 77, 214, 124, 210, 122, 218, 148, 61, 75, 195];
+    let viewing_key_1 = vec![93, 67, 166, 137, 242, 195, 179, 2, 150, 65, 198, 92, 80, 8, 0, 92, 135, 48, 79, 15, 245, 153, 136, 228, 135, 58, 81, 56, 155, 236, 137, 17];
+    let viewing_key_2 = vec![142, 187, 124, 240, 227, 194, 242, 163, 65, 252, 62, 9, 196, 54, 58, 192, 154, 230, 242, 64, 194, 142, 245, 128, 4, 71, 143, 230, 101, 245, 91, 187];
 
-    println!("spending_key_1: {:?}", spending_key_1.clone());
-    println!("spending_key_2: {:?}", spending_key_2.clone());
-    println!("viewing_key_1: {:?}", viewing_key_1.clone());
-    println!("viewing_key_2: {:?}", viewing_key_2.clone());
+    let random_1 = vec![218, 149, 98, 132, 226, 15, 222, 160, 140, 137, 58, 102, 160, 218, 201, 109, 131, 176, 227, 205, 123, 164, 238, 6, 60, 83, 17, 43, 94, 209, 252, 184];
+    let random_2 = vec![196, 110, 95, 185, 243, 90, 167, 89, 148, 149, 131, 151, 134, 253, 180, 51, 16, 123, 113, 134, 29, 76, 155, 41, 172, 34, 67, 97, 103, 141, 186, 246];
+    let random_3 = vec![64, 58, 209, 234, 198, 134, 218, 59, 115, 40, 175, 174, 210, 35, 165, 143, 162, 129, 173, 104, 64, 119, 160, 153, 142, 218, 200, 179, 206, 108, 123, 170];
 
-    let random_1 = generate_random_bytes(32);
-    let random_2 = generate_random_bytes(32);
-    let random_3 = generate_random_bytes(32);
-
-    println!("random_1: {:?}", random_1.clone());
-    println!("random_2: {:?}", random_2.clone());
-    println!("random_3: {:?}", random_3.clone());
-
-    let token_id = generate_random_bytes(32);
-    let nonce = generate_random_bytes(12);
-
-    println!("token_id: {:?}", token_id.clone());
-    println!("nonce: {:?}", nonce.clone());
+    let token_id = vec![4, 148, 236, 250, 73, 83, 223, 138, 185, 251, 187, 8, 139, 108, 78, 148, 157, 115, 191, 138, 230, 18, 164, 123, 117, 104, 250, 248, 202, 213, 97, 61];
+    let nonce = vec![252, 96, 142, 117, 60, 64, 152, 99, 175, 204, 128, 197];
 
     let mut tree: MerkleTreeSparse<32> = MerkleTreeSparse::new(0);
 
@@ -129,7 +117,6 @@ fn main() {
         .iter()
         .map(|utxo| utxo.clone().encrypt(viewing_key_1.clone()))
         .collect();
-    println!("ciphertexts: {:?}", ciphertexts);
 
     let pubkey = utxos_in[0].spending_public_key();
     let nullifying_key = utxos_in[0].nullifying_key();
@@ -148,9 +135,9 @@ fn main() {
         .collect();
 
     let public_data = PublicData {
-        merkle_root,
+        merkle_root: merkle_root.clone(),
         params_hash,
-        nullifiers,
+        nullifiers: nullifiers.clone(),
         output_hashes,
     };
 
@@ -176,8 +163,6 @@ fn main() {
     };
     let serialized_args = borsh::to_vec(&args).unwrap();
 
-    println!("args: {:?}", args);
-    println!("serialized_args: {:?}", serialized_args);
     // Setup the prover client.
     let client = ProverClient::from_env();
 

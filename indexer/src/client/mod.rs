@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
 use borsh::{BorshSerialize, BorshDeserialize};
-use client::merkle::MerkleTreeSparse;
-use veil_types::UTXO;
+use veil_types::{UTXO, MerkleTreeSparse};
 
 pub mod solana;
 
