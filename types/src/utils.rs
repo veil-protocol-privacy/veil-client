@@ -1,7 +1,10 @@
 use sha3::{Digest, Sha3_256};
 
 pub fn sha256(inputs: Vec<&[u8]>) -> Vec<u8> {
-    solana_sha256_hasher::hashv(&inputs).to_bytes().to_vec()
+    println!("cycle-tracker-start: compute");
+    let a = solana_sha256_hasher::hashv(&inputs).to_bytes().to_vec();
+    println!("cycle-tracker-end: compute");
+    a
 }
 
 pub fn hash_left_right(left: Vec<u8>, right: Vec<u8>) -> Vec<u8> {
@@ -12,7 +15,7 @@ pub fn hash_left_right(left: Vec<u8>, right: Vec<u8>) -> Vec<u8> {
 
 pub fn keccak(inputs: Vec<&[u8]>) -> Vec<u8> {
     let mut hasher = Sha3_256::new();
-    for input in inputs {
+    for input in inputs { 
         hasher.update(input);
     }
 

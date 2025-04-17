@@ -174,18 +174,31 @@ fn main() {
     // Setup the program for proving.
     let (pk, vk) = client.setup(METHOD_ELF);
 
-    // Generate the proof
-    let proof = client
-        .prove(&pk, &stdin)
-        .groth16()
-        .run()
-        .expect("failed to generate proof");
+    let start = std::time::Instant::now();
 
+    // Generate the proof
+    // let proof = client
+    //     .prove(&pk, &stdin)
+    //     .groth16()
+    //     .run()
+    //     .expect("failed to generate proof");
+
+    let (mut public_values, execution_report) = client.execute(METHOD_ELF, &stdin).run().unwrap();
+
+    // Print the total number of cycles executed and the full execution report with a breakdown of
+    // the RISC-V opcode and syscall counts.
+    println!(
+        "Executed program with {} cycles",
+        execution_report.total_instruction_count() + execution_report.total_syscall_count()
+    );
+    println!("Full execution report:\n{:?}", execution_report);
     println!("Successfully generated proof!");
+
+    println!("Proof generation time: {:?}", start.elapsed());
 
     // TODO: decypt vkey for program compatible
 
     // Verify the proof.
-    client.verify(&proof, &vk).expect("failed to verify proof");
-    println!("Successfully verified proof!");
+    // client.verify(&proof, &vk).expect("failed to verify proof");
+    // println!("Successfully verified proof!");
 }

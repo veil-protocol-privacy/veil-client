@@ -9,7 +9,7 @@ solana-client = { workspace = true }
 solana-program = { workspace = true }
 solana-sdk = { workspace = true }
 spl-token = { workspace = true, features = ["no-entrypoint"] }
-spl-associated-token-account = { workspace = true }
+spl-associated-token-account = { workspace = true, features = ["no-entrypoint"] }
 
 darksol = { workspace = true }
 types = { path = "../types" }
@@ -22,3 +22,4 @@ serde_json = { workspace = true }
 serde_yaml = "0.9.34"
 dirs = "6.0.0"
 tokio = "1.44.1"
+solana-program-test = "2.2.7"

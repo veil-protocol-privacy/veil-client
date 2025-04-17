@@ -39,13 +39,6 @@ pub enum TxCommands {
         /// memo
         #[arg(short, long)]
         memo: String,
-        // /// file path to spending and viewing key
-        // #[arg(short, long)]
-        // svk_file_path: String,
-
-        // /// file path to keypair
-        // #[arg(short, long)]
-        // key_file_path: String,
     },
 
     /// Transfer money privately
@@ -70,13 +63,6 @@ pub enum TxCommands {
         /// file path to json file contains all the inputs and outputs
         #[arg(short, long)]
         json_file_path: String,
-        // /// file path to spending and viewing key
-        // #[arg(short, long)]
-        // svk_file_path: String,
-
-        // /// file path to keypair
-        // #[arg(short, long)]
-        // key_file_path: String,
     },
 
     /// Withdraw fund to an account
@@ -106,13 +92,6 @@ pub enum TxCommands {
         /// file path to json file contains all the inputs and outputs
         #[arg(short, long)]
         json_file_path: String,
-        // /// file path to spending and viewing key
-        // #[arg(short, long)]
-        // svk_file_path: String,
-
-        // /// file path to keypair
-        // #[arg(short, long)]
-        // key_file_path: String,
     },
 
     /// Initialize fund to an account
