@@ -22,4 +22,8 @@ serde_json = { workspace = true }
 serde_yaml = "0.9.34"
 dirs = "6.0.0"
 tokio = "1.44.1"
-solana-program-test = "2.2.7"
+
+
+[dev-dependencies]
+litesvm = "0.6.1"
+solana-program-test = "2.2.4"
