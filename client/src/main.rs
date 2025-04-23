@@ -16,7 +16,7 @@ fn main() {
     sp1_sdk::utils::setup_logger();
 
     let spending_key_1 = generate_random_bytes(32);
-    let spending_key_2 = generate_random_bytes(32);
+    let spending_key_2: Vec<u8> = generate_random_bytes(32);
     let viewing_key_1 = generate_random_bytes(32);
     let viewing_key_2 = generate_random_bytes(32);
 

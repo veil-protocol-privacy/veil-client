@@ -2,23 +2,18 @@ use axum::{Router, routing::get};
 use base64::Engine as _;
 use base64::engine::general_purpose;
 use indexer::{
-    AppState,
-    api_handler::handler::{leafs, roots},
-    client::{
-        DEPOSIT_EVENT, NULLIFIERS_EVENT, TRANSFER_EVENT, WITHDRAW_EVENT, solana::SolanaClient,
-    },
-    event::{
-        Event, decrypt_deposit_cipher_text, decrypt_transaction_cipher_text,
-        get_nullifiers_from_event,
-    },
-    storage::db::memdb::MemDb,
+    api_handler::handler::{leafs, roots}, client::{
+        solana::SolanaClient, DEPOSIT_EVENT, NULLIFIERS_EVENT, TRANSFER_EVENT, WITHDRAW_EVENT
+    }, event::{
+        decrypt_deposit_cipher_text, decrypt_transaction_cipher_text, get_nullifiers_from_event, Event
+    }, storage::{db::rockdb::{Storage, StorageWrapper}, DbOptions}, AppState
 };
 use solana_sdk::pubkey::Pubkey;
 use std::{error::Error, str::FromStr};
 use std::{net::SocketAddr, sync::Arc};
 use tokio::{
     net::TcpListener,
-    sync::{Mutex, mpsc},
+    sync::mpsc
 };
 
 // const RPC_URL: &str = "https://api.mainnet-beta.solana.com";
@@ -35,7 +30,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let solana_client = SolanaClient::new(RPC_URL, WS_URL);
     let client = Arc::new(solana_client.await?);
-    let memdb = Arc::new(Mutex::new(MemDb::new()));
+    let db_options = DbOptions::default();
+    let db = match db_options.enable_merkle_indexing {
+        true => Arc::new(StorageWrapper::WithMerkle(Storage::<true>::new(
+            &db_options.path,
+        ))),
+        false => Arc::new(StorageWrapper::WithoutMerkle(Storage::<false>::new(
+            &db_options.path,
+        ))),
+    };
 
     let (tx, mut rx) = mpsc::channel(100);
 
@@ -53,19 +56,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
         async move { client.fetch_historical_events(program_id, tx).await }
     });
 
-    // get initial json state
-    let memdb_json_data = memdb.lock().await.to_json();
-
-    // Create shared state
-    let shared_state: Arc<AppState> = Arc::new(Mutex::new(memdb_json_data.data.clone()));
-
-    let worker_state = Arc::clone(&shared_state);
+    // Wrap in shared state
+    let state = AppState { db };
+    let worker_state = state.clone();
 
     // start api server
     let app = Router::new()
         .route("/root", get(roots))
-        .route("/notes", get(leafs))
-        .with_state(shared_state);
+        .route("/leafs", get(leafs))
+        .with_state(state.into());
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     let listener = TcpListener::bind(addr).await.unwrap();
@@ -79,23 +78,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
             if log.contains(&DEPOSIT_EVENT.to_string()) {
                 if let Some(parsed_event) = Event::parse_event(&log) {
                     if let Ok(decoded) = general_purpose::STANDARD.decode(parsed_event.value) {
-                        let (utxo, _tree_num, _start_position) =
+                        let (utxo, tree_num, start_position) =
                             match decrypt_deposit_cipher_text(KEY_PATH.to_string(), decoded) {
                                 Ok(data) => data,
                                 Err(err) => {
                                     println!("error decrypting ciphertext: {}", err.to_string());
 
                                     continue;
-                                },
+                                }
                             };
 
-                        let mut db = memdb.lock().await;
-                        let index_map = (*db).insert(vec![utxo.utxo_hash()]);
-                        let index = index_map.get(&utxo.utxo_hash()).unwrap();
-                        (*db).insert_utxo(*index, utxo);
-
-                        // update app state
-                        update_index_state(&worker_state, (*db).to_json().data.clone()).await;
+                        worker_state
+                            .db
+                            .insert_leafs(tree_num, start_position, utxo.utxo_hash());
                     }
                 }
             }
@@ -105,26 +100,41 @@ async fn main() -> Result<(), Box<dyn Error>> {
             {
                 if let Some(parsed_event) = Event::parse_event(&log) {
                     if let Ok(decoded) = general_purpose::STANDARD.decode(parsed_event.value) {
-                        let (utxos, leafs, _tree_num, _start_position) =
+                        let (utxos, leafs, tree_num, start_position) =
                             match decrypt_transaction_cipher_text(KEY_PATH.to_string(), decoded) {
                                 Ok(data) => data,
                                 Err(err) => {
                                     println!("error decrypting ciphertext: {}", err.to_string());
 
-                                    continue
-                                },
+                                    continue;
+                                }
                             };
 
-                        let mut db = memdb.lock().await;
-                        let index_map = (*db).insert(leafs);
-
-                        utxos.iter().for_each(|utxo| {
-                            let index = index_map.get(&utxo.utxo_hash()).unwrap();
-                            (*db).insert_utxo(*index, utxo.clone());
+                        leafs.iter().for_each(|leaf| {
+                            match worker_state.db.insert_leafs(
+                                tree_num,
+                                start_position,
+                                leaf.to_vec(),
+                            ) {
+                                Ok(_) => {},
+                                Err(err) => {
+                                    println!("error storing leafs: {}", err);
+                                },
+                            }
                         });
 
-                        // update app state
-                        update_index_state(&worker_state, (*db).to_json().data.clone()).await;
+                        utxos.iter().for_each(|utxo| {
+                            match worker_state.db.insert_utxo(
+                                tree_num,
+                                start_position,
+                                utxo.clone(),
+                            ) {
+                                Ok(_) => {},
+                                Err(err) => {
+                                    println!("error storing utxo: {}", err);
+                                },
+                            }
+                        });
                     }
                 }
             }
@@ -143,9 +153,4 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     Ok(())
-}
-
-async fn update_index_state(state: &Arc<AppState>, new_data: String) {
-    let mut index = state.lock().await;
-    *index = new_data;
 }

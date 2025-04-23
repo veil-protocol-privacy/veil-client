@@ -1,6 +1,6 @@
 use serde::Serialize;
-use std::fs;
-use tokio::sync::Mutex;
+use storage::db::rockdb::StorageWrapper;
+use std::{fs, sync::Arc};
 
 pub mod api_handler;
 pub mod client;
@@ -10,7 +10,11 @@ pub mod storage;
 const CONTENT_LENGTH: usize = 96;
 
 // Define application state
-pub type AppState = Mutex<String>;
+
+#[derive(Clone)]
+pub struct AppState{
+    pub db: Arc<StorageWrapper>,
+}
 
 #[derive(Serialize)]
 pub struct Data {

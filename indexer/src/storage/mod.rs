@@ -1,7 +1,20 @@
+use db::rockdb::Storage;
+
 pub mod db;
 
-pub trait Storage {
-    fn insert(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), String>;
-    fn get(&self, key: Vec<u8>) -> Result<Vec<u8>, String>;
-    fn delete(&self, key: Vec<u8>) -> Result<(), String>;
+const DEFAULT_PATH: &str = "../../data/rockdb";
+
+pub struct DbOptions {
+    pub path: String,
+    pub enable_merkle_indexing: bool,
+}
+
+impl DbOptions {
+    pub fn new(path: String, enable_merkle_indexing: bool) -> Self {
+        DbOptions { path, enable_merkle_indexing }
+    }
+
+    pub fn default() -> Self {
+        DbOptions { path: DEFAULT_PATH.to_string(), enable_merkle_indexing: true }
+    }
 }
