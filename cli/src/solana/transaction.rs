@@ -3,7 +3,7 @@ use darksol::{
     WithdrawRequest,
 };
 use solana_sdk::pubkey::Pubkey;
-use types::{generate_nullifier, utxo::UTXO};
+use veil_types::{generate_nullifier, utxo::UTXO};
 
 use crate::utils::{TransferInput, TransferOutput, generate_random_bytes};
 

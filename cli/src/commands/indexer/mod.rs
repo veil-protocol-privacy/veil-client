@@ -5,7 +5,7 @@ use borsh::BorshDeserialize;
 use clap::Subcommand;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use types::UTXO;
+use veil_types::UTXO;
 
 use crate::cli::CliContext;
 
