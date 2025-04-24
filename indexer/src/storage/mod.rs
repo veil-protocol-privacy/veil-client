@@ -1,5 +1,3 @@
-use db::rockdb::Storage;
-
 pub mod db;
 
 const DEFAULT_PATH: &str = "../../data/rockdb";

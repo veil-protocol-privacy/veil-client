@@ -1,12 +1,11 @@
 use std::collections::HashMap;
-
 use borsh::BorshDeserialize;
 use rocksdb::{
     ColumnFamilyDescriptor, DBWithThreadMode, IteratorMode, MultiThreaded, Options,
 };
-use types::UTXO;
+use veil_types::utxo::UTXO;
 
-pub struct Storage<const ENABLE_MERKLE_INDEX: bool> {
+pub struct RockDbStorage<const ENABLE_MERKLE_INDEX: bool> {
     pub db: DBWithThreadMode<MultiThreaded>,
 }
 
@@ -15,7 +14,7 @@ pub struct LeafRange {
     pub end: u64,
 }
 
-impl<const ENABLE_MERKLE_INDEX: bool> Storage<ENABLE_MERKLE_INDEX> {
+impl<const ENABLE_MERKLE_INDEX: bool> RockDbStorage<ENABLE_MERKLE_INDEX> {
     pub fn new(path: &str) -> Self {
         let mut opts = Options::default();
         opts.create_if_missing(true);
@@ -28,10 +27,9 @@ impl<const ENABLE_MERKLE_INDEX: bool> Storage<ENABLE_MERKLE_INDEX> {
         }
 
         cfs.push(ColumnFamilyDescriptor::new("utxos", Options::default()));
-        cfs.push(ColumnFamilyDescriptor::new("nullifiers", Options::default()));
 
         let db = DBWithThreadMode::<MultiThreaded>::open_cf_descriptors(&opts, path, cfs).unwrap();
-        Storage { db }
+        RockDbStorage { db }
     }
 
     pub fn insert_utxo(
@@ -118,7 +116,7 @@ impl<const ENABLE_MERKLE_INDEX: bool> Storage<ENABLE_MERKLE_INDEX> {
     }
 }
 
-impl Storage<true> {
+impl RockDbStorage<true> {
     pub fn insert_leaf(
         &mut self,
         tree_number: u64,
@@ -164,6 +162,26 @@ impl Storage<true> {
     pub fn get_iterator_for_tree(
         &self,
         tree_number: u64,
+    ) -> Result<HashMap<Vec<u8>, Vec<u8>>, String> {
+        let merkle_cf = self.db.cf_handle("merkle").unwrap();
+        let prefix = format!("tree{}-", tree_number).as_bytes().to_vec();
+
+        let iter = self.db.prefix_iterator_cf(&merkle_cf, prefix);
+        let mut map: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
+
+        for (key, value) in iter
+            .filter_map(Result::ok)
+        {
+            if Some(value.clone()).is_some() {
+                map.insert(key.to_vec(), value.to_vec());
+            }
+        }
+        Ok(map)
+    }
+
+    pub fn get_iterator_for_tree_with_range(
+        &self,
+        tree_number: u64,
         range: LeafRange,
     ) -> Result<HashMap<Vec<u8>, Vec<u8>>, String> {
         let merkle_cf = self.db.cf_handle("merkle").unwrap();
@@ -185,8 +203,8 @@ impl Storage<true> {
 }
 
 pub enum StorageWrapper {
-    WithMerkle(Storage<true>),
-    WithoutMerkle(Storage<false>),
+    WithMerkle(RockDbStorage<true>),
+    WithoutMerkle(RockDbStorage<false>),
 }
 
 impl StorageWrapper {
@@ -218,9 +236,16 @@ impl StorageWrapper {
         }
     }
 
-    pub fn get_iterator_for_tree(&self, tree_number: u64, range: LeafRange) -> Result<HashMap<Vec<u8>, Vec<u8>>, String>  {
+    pub fn get_iterator_for_tree(&self, tree_number: u64) -> Result<HashMap<Vec<u8>, Vec<u8>>, String>  {
         match self {
-            StorageWrapper::WithMerkle(s) => s.get_iterator_for_tree(tree_number, range),
+            StorageWrapper::WithMerkle(s) => s.get_iterator_for_tree(tree_number),
+            StorageWrapper::WithoutMerkle(_) => Err("indexer not supports this api".to_string()),
+        }
+    }
+
+    pub fn get_iterator_for_tree_with_range(&self, tree_number: u64, range: LeafRange) -> Result<HashMap<Vec<u8>, Vec<u8>>, String>  {
+        match self {
+            StorageWrapper::WithMerkle(s) => s.get_iterator_for_tree_with_range(tree_number, range),
             StorageWrapper::WithoutMerkle(_) => Err("indexer not supports this api".to_string()),
         }
     }

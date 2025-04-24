@@ -2,19 +2,24 @@ use axum::{Router, routing::get};
 use base64::Engine as _;
 use base64::engine::general_purpose;
 use indexer::{
-    api_handler::handler::{leafs, roots}, client::{
-        solana::SolanaClient, DEPOSIT_EVENT, NULLIFIERS_EVENT, TRANSFER_EVENT, WITHDRAW_EVENT
-    }, event::{
-        decrypt_deposit_cipher_text, decrypt_transaction_cipher_text, get_nullifiers_from_event, Event
-    }, storage::{db::rockdb::{Storage, StorageWrapper}, DbOptions}, AppState
+    AppState,
+    api_handler::handler::{leafs, roots},
+    client::{
+        DEPOSIT_EVENT, NULLIFIERS_EVENT, TRANSFER_EVENT, WITHDRAW_EVENT, solana::SolanaClient,
+    },
+    event::{
+        Event, decrypt_deposit_cipher_text, decrypt_transaction_cipher_text,
+        get_nullifiers_from_event,
+    },
+    storage::{
+        DbOptions,
+        db::rockdb::{RockDbStorage, StorageWrapper},
+    },
 };
 use solana_sdk::pubkey::Pubkey;
-use std::{error::Error, str::FromStr};
+use std::{error::Error, str::FromStr, sync::RwLock};
 use std::{net::SocketAddr, sync::Arc};
-use tokio::{
-    net::TcpListener,
-    sync::mpsc
-};
+use tokio::{net::TcpListener, sync::mpsc};
 
 // const RPC_URL: &str = "https://api.mainnet-beta.solana.com";
 // const WS_URL: &str = "wss://api.mainnet-beta.solana.com/";
@@ -32,12 +37,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let client = Arc::new(solana_client.await?);
     let db_options = DbOptions::default();
     let db = match db_options.enable_merkle_indexing {
-        true => Arc::new(StorageWrapper::WithMerkle(Storage::<true>::new(
-            &db_options.path,
+        true => Arc::new(RwLock::new(StorageWrapper::WithMerkle(
+            RockDbStorage::<true>::new(&db_options.path),
         ))),
-        false => Arc::new(StorageWrapper::WithoutMerkle(Storage::<false>::new(
+        false => Arc::new(RwLock::new(StorageWrapper::WithoutMerkle(RockDbStorage::<
+            false,
+        >::new(
             &db_options.path,
-        ))),
+        )))),
     };
 
     let (tx, mut rx) = mpsc::channel(100);
@@ -88,9 +95,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 }
                             };
 
-                        worker_state
-                            .db
-                            .insert_leafs(tree_num, start_position, utxo.utxo_hash());
+                        let mut db = match worker_state.db.write() {
+                            Ok(data) => data,
+                            Err(err) => {
+                                println!("error get mutate write db: {}", err.to_string());
+
+                                continue;
+                            }
+                        };
+
+                        match db.insert_leafs(tree_num, start_position, utxo.utxo_hash()) {
+                            Ok(_) => {},
+                            Err(err) => {
+                                println!("error insert leafs: {}", err.to_string());
+                                
+                                continue;
+                            },
+                        }
                     }
                 }
             }
@@ -110,29 +131,38 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 }
                             };
 
+                        let mut db = match worker_state.db.write() {
+                            Ok(data) => data,
+                            Err(err) => {
+                                println!("error get mutate write db: {}", err.to_string());
+
+                                continue;
+                            }
+                        };
+
                         leafs.iter().for_each(|leaf| {
-                            match worker_state.db.insert_leafs(
+                            match db.insert_leafs(
                                 tree_num,
                                 start_position,
                                 leaf.to_vec(),
                             ) {
-                                Ok(_) => {},
+                                Ok(_) => {}
                                 Err(err) => {
                                     println!("error storing leafs: {}", err);
-                                },
+                                }
                             }
                         });
 
                         utxos.iter().for_each(|utxo| {
-                            match worker_state.db.insert_utxo(
+                            match db.insert_utxo(
                                 tree_num,
                                 start_position,
                                 utxo.clone(),
                             ) {
-                                Ok(_) => {},
+                                Ok(_) => {}
                                 Err(err) => {
                                     println!("error storing utxo: {}", err);
-                                },
+                                }
                             }
                         });
                     }

@@ -1,6 +1,6 @@
 use serde::Serialize;
 use storage::db::rockdb::StorageWrapper;
-use std::{fs, sync::Arc};
+use std::{fs, sync::{Arc, RwLock}};
 
 pub mod api_handler;
 pub mod client;
@@ -13,7 +13,7 @@ const CONTENT_LENGTH: usize = 96;
 
 #[derive(Clone)]
 pub struct AppState{
-    pub db: Arc<StorageWrapper>,
+    pub db: Arc<RwLock<StorageWrapper>>,
 }
 
 #[derive(Serialize)]

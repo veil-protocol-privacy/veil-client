@@ -1,25 +1,17 @@
 
 use std::collections::HashMap;
-
-use axum::Json;
-use base64::{Engine as _, engine::general_purpose};
-use veil_types::{UTXO, MerkleTreeSparse};
-
-use crate::client::RawData;
-use crate::Data;
+use veil_types::MerkleTreeSparse;
 
 pub struct MemDb {
-    tree: MerkleTreeSparse<32>,
-    utxos: HashMap<u64, UTXO>,
+    pub tree: MerkleTreeSparse<32>,
 }
 
 impl MemDb {
-    pub fn new() -> Self {
-        let tree = MerkleTreeSparse::new(0);
+    pub fn new(tree_num: u64) -> Self {
+        let tree = MerkleTreeSparse::new(tree_num);
 
         MemDb {
             tree,
-            utxos: HashMap::new(),
         }
     }
 
@@ -31,19 +23,10 @@ impl MemDb {
         self.tree.root()
     }
 
-    pub fn insert_utxo(&mut self, leaf_index: u64, utxo: UTXO) {
-        self.utxos.insert(leaf_index, utxo);
-    }
+    pub fn import_tree(&mut self, tree_num: u64, leafs: Vec<Vec<u8>>) -> Self {
+        let mut emtpy_tree = MerkleTreeSparse::new(tree_num);   
+        emtpy_tree.insert(leafs);
 
-    pub fn to_json(&self) -> Json<Data> {
-        let data = RawData {
-            tree_data: self.tree.clone(),
-            utxos_data: self.utxos.clone(),
-        };
-
-        let data_bytes = borsh::to_vec(&data).unwrap();
-        let encoded = general_purpose::STANDARD.encode(&data_bytes);
-
-        Json(Data { data: encoded })
+        MemDb { tree: emtpy_tree }
     }
 }
