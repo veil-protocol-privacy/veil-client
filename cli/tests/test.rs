@@ -1,12 +1,20 @@
 #![cfg(test)]
 
+use std::vec;
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use cli::{
-    solana::transaction::{create_deposit_instructions_data, create_transfer_instructions_data},
-    utils::{generate_random_bytes, get_proof_from_file, read_json_file},
+    solana::transaction::{
+        create_deposit_instructions_data, create_deposit_instructions_data_test,
+        create_transfer_instructions_data, create_transfer_instructions_data_test,
+        create_withdraw_instructions_data, create_withdraw_instructions_data_test,
+    },
+    utils::{
+        TransferInput, TransferOutput, generate_random_bytes, get_proof_from_file, read_json_file,
+    },
 };
 use darksol::{
-    derive_pda, entrypoint::process_instruction,
+    DepositRequest, SP1Groth16Proof, derive_pda, entrypoint::process_instruction,
     utils::account::get_associated_token_address_and_bump_seed,
 };
 use litesvm::LiteSVM;
@@ -25,10 +33,11 @@ use spl_associated_token_account::{
     tools::account,
 };
 use spl_token::instruction::sync_native;
-use types::UTXO;
+use types::merkle::MerkleTreeSparse;
+use types::{PublicData, UTXO};
 
 #[tokio::test]
-async fn test() {
+async  fn test() {
     let program_id = Pubkey::new_unique();
 
     let (mut banks_client, payer, recent_blockhash) =
@@ -36,23 +45,19 @@ async fn test() {
             .start()
             .await;
 
-    // let mut svm = LiteSVM::new();
-    // svm.airdrop(&from, 10_000).unwrap();
-    // svm.add_builtin(program_id);
-
     let depositor_keypair = solana_sdk::signature::Keypair::new();
+    let depositor_pubkey = depositor_keypair.pubkey();
+
     let depositor_deposit_key = solana_sdk::signature::Keypair::new();
     let depositor_view_key = solana_sdk::signature::Keypair::new();
     let depositor_spend_key = solana_sdk::signature::Keypair::new();
 
-    let depositor_pubkey = depositor_keypair.pubkey();
-
     let receiver_keypair = solana_sdk::signature::Keypair::new();
+    let receiver_pubkey = receiver_keypair.pubkey();
+
     let receiver_deposit_key = solana_sdk::signature::Keypair::new();
     let receiver_view_key = solana_sdk::signature::Keypair::new();
     let receiver_spend_key = solana_sdk::signature::Keypair::new();
-
-    let receiver_pubkey = receiver_keypair.pubkey();
 
     // Create and fund the depositor account
     // let depositor_account = solana_sdk::account::Account {
@@ -134,7 +139,7 @@ async fn test() {
 
     transaction.sign(
         &[&depositor_keypair],
-        banks_client.get_latest_blockhash().await.unwrap(),
+        recent_blockhash,
     );
 
     let res = banks_client.process_transaction(transaction).await;
@@ -150,9 +155,9 @@ async fn test() {
 
     // deposit
 
-    let mut deposit_data = match create_deposit_instructions_data(
+    let (mut deposit_data, deposit_utxo) = match create_deposit_instructions_data_test(
         &spl_token::native_mint::ID,
-        1_000_000_000,
+        amount,
         depositor_spend_key.pubkey().to_bytes().to_vec(),
         depositor_view_key.pubkey().to_bytes().to_vec(),
         depositor_deposit_key.pubkey().to_bytes().to_vec(),
@@ -255,93 +260,200 @@ async fn test() {
 
     // transfer
 
-    // let utxo_in = UTXO::new(
-    //     depositor_spend_key.secret().to_bytes().to_vec(),
-    //     depositor_view_key.secret().to_bytes().to_vec(),
-    //     spl_token::native_mint::ID.to_bytes().to_vec(),
-    //     generate_random_bytes(32),
-    //     generate_random_bytes(12),
-    //     amount,
-    //     "a".to_string(),
-    // );
+    let mut tree: MerkleTreeSparse<32> = MerkleTreeSparse::new(1);
 
-    // let utxo_out = UTXO::new(
-    //     receiver_spend_key.secret().to_bytes().to_vec(),
-    //     receiver_view_key.secret().to_bytes().to_vec(),
-    //     spl_token::native_mint::ID.to_bytes().to_vec(),
-    //     generate_random_bytes(32),
-    //     generate_random_bytes(12),
-    //     amount,
-    //     "b".to_string(),
-    // );
+    tree.insert(vec![deposit_utxo.utxo_hash()]);
 
-    // let inputs = vec![utxo_in];
-    // let outputs = vec![utxo_out];
+    let inputs = vec![TransferInput {
+        amount: amount,
+        merkle_leaf_index: 0,
+    }];
+    let outputs = vec![TransferOutput {
+        amount: amount,
+        memo: "a".to_string(),
+    }];
 
-    // let mut serialized_data = match create_transfer_instructions_data(
-    //     &spl_token::native_mint::ID,
-    //     receiver_view_key.pubkey().to_bytes().to_vec(),
-    //     vec![],
-    //     inputs,
-    //     outputs,
-    //     vec![],
-    //     tree_number,
-    //     depositor_spend_key.to_bytes().to_vec(),
-    //     depositor_view_key.to_bytes().to_vec(),
-    // ) {
-    //     Ok(data) => data,
-    //     Err(err) => {
-    //         println!(
-    //             "{}",
-    //             format!("failed to create instruction data: {}", err.to_string())
-    //         );
+    let (mut serialized_data, new_commitment) = match create_transfer_instructions_data_test(
+        &spl_token::native_mint::ID,
+        receiver_view_key.pubkey().to_bytes().to_vec(),
+        inputs,
+        outputs,
+        tree.root(),
+        tree_number,
+        depositor_spend_key.secret().to_bytes().to_vec(),
+        depositor_view_key.secret().to_bytes().to_vec(),
+    ) {
+        Ok(data) => data,
+        Err(err) => {
+            println!(
+                "{}",
+                format!("failed to create instruction data: {}", err.to_string())
+            );
 
-    //         return;
-    //     }
-    // };
+            return;
+        }
+    };
 
-    // // get current tree number to fetch the correct commitments account info
-    // let newest_tree_number = 1;
+    // get current tree number to fetch the correct commitments account info
+    let newest_tree_number = 1;
 
-    // // get all necessary account meta
-    // // user wallet
-    // // spent commitments account
-    // // current commitments account
-    // // commitments manager account
+    // get all necessary account meta
+    // user wallet
+    // spent commitments account
+    // current commitments account
+    // commitments manager account
 
-    // let account_metas: Vec<AccountMeta> = vec![];
-    // account_metas.push(AccountMeta::new(depositor_pubkey.clone(), true));
+    let mut account_metas: Vec<AccountMeta> = vec![];
+    account_metas.push(AccountMeta::new(depositor_pubkey.clone(), true));
 
-    // let (spent_commitments_pda, _bump_seed) = derive_pda(tree_number, &program_id);
-    // account_metas.push(AccountMeta::new(spent_commitments_pda, false));
+    let (spent_commitments_pda, _bump_seed) = derive_pda(tree_number, &program_id);
+    account_metas.push(AccountMeta::new(spent_commitments_pda, false));
 
-    // let (current_commitments_pda, _bump_seed) = derive_pda(newest_tree_number, &program_id);
-    // account_metas.push(AccountMeta::new(current_commitments_pda, false));
+    let (current_commitments_pda, _bump_seed) = derive_pda(newest_tree_number, &program_id);
+    account_metas.push(AccountMeta::new(current_commitments_pda, false));
 
-    // let (commitments_manager_pda, _bump_seed) =
-    //     Pubkey::find_program_address(&[b"commitments_manager_pda"], &program_id);
-    // account_metas.push(AccountMeta::new(commitments_manager_pda, false));
+    let (commitments_manager_pda, _bump_seed) =
+        Pubkey::find_program_address(&[b"commitments_manager_pda"], &program_id);
+    account_metas.push(AccountMeta::new(commitments_manager_pda, false));
 
-    // // insert variant bytes
-    // serialized_data.insert(0, 1);
-    // // Create instruction
-    // let instruction = Instruction {
-    //     program_id,
-    //     accounts: account_metas,
-    //     data: serialized_data,
-    // };
+    // insert variant bytes
+    serialized_data.insert(0, 1);
+    // Create instruction
+    let instruction = Instruction {
+        program_id,
+        accounts: account_metas,
+        data: serialized_data,
+    };
 
-    // let message = Message::new(&[instruction], Some(&&depositor_pubkey));
-    // let mut transaction = Transaction::new_unsigned(message);
+    let message = Message::new(&[instruction], Some(&&depositor_pubkey));
+    let mut transaction = Transaction::new_unsigned(message);
 
-    // transaction.sign(&[&depositor_keypair], recent_blockhash);
+    transaction.sign(&[&depositor_keypair], recent_blockhash);
 
-    // let res = banks_client.process_transaction(transaction).await;
+    let res = banks_client.process_transaction(transaction).await;
 
-    // match res {
-    //     Ok(_) => println!("Deposit transaction successful"),
-    //     Err(err) => println!("Deposit transaction failed: {:?}", err),
-    // }
+    match res {
+        Ok(_) => println!("Transfer transaction successful"),
+        Err(err) => println!("Transfer transaction failed: {:?}", err),
+    }
 
     // withdraw
+    // create receiver token account
+    let receiver_token_addr =
+        get_associated_token_address(&receiver_pubkey, &spl_token::native_mint::ID);
+    // let create_ata_ix = create_associated_token_account_idempotent(
+    //     &receiver_pubkey,
+    //     &receiver_pubkey,
+    //     &spl_token::native_mint::ID,
+    //     &spl_token::ID,
+    // );
+    // let mut transaction = Transaction::new_with_payer(&[create_ata_ix], Some(&receiver_pubkey));
+    // transaction.sign(
+    //     &[&receiver_keypair],
+    //     recent_blockhash,
+    // );
+    // let res = banks_client.process_transaction(transaction).await;
+    // match res {
+    //     Ok(_) => println!("Create ata transaction successful"),
+    //     Err(err) => println!("Create ata transaction failed: {:?}", err),
+    // }
+
+    let inputs = vec![TransferInput {
+        amount,
+        merkle_leaf_index: 1,
+    }];
+
+    tree.insert(new_commitment);
+
+    let (mut serialized_data, insert_new_commitment) = match create_withdraw_instructions_data_test(
+        &spl_token::native_mint::ID,
+        amount,
+        inputs,
+        tree.root(),
+        tree_number,
+        receiver_spend_key.secret().as_bytes().to_vec(),
+        receiver_view_key.secret().as_bytes().to_vec(),
+    ) {
+        Ok(data) => data,
+        Err(err) => {
+            println!(
+                "{}",
+                format!("failed to create instruction data: {}", err.to_string())
+            );
+
+            return;
+        }
+    };
+
+    // get all necessary account meta
+    // funding account
+    // spent commitments account
+    // user wallet
+    // user token account
+    // funding token account
+    // token program
+    //
+    // current commitment account
+    // commitments manager account
+
+    let mut account_metas: Vec<AccountMeta> = vec![];
+
+    let (funding_pda, _bump_seed) = Pubkey::find_program_address(&[b"funding_pda"], &program_id);
+    account_metas.push(AccountMeta::new(funding_pda, false));
+
+    let (spent_commitments_pda, _bump_seed) = derive_pda(tree_number, &program_id);
+    account_metas.push(AccountMeta::new(spent_commitments_pda, false));
+
+    account_metas.push(AccountMeta::new(receiver_pubkey, false));
+    account_metas.push(AccountMeta::new(receiver_token_addr, false));
+
+    // let (funding_ata, ata_bump) = get_associated_token_address_and_bump_seed(
+    //     &funding_pda,
+    //     &spl_token::native_mint::ID,
+    //     &spl_associated_token_account::ID,
+    //     &spl_token::ID,
+    // );
+
+    let (funding_ata, ata_bump) = Pubkey::find_program_address(&[b"funding_ata"], &program_id);
+    account_metas.push(AccountMeta::new(funding_ata, false));
+
+    account_metas.push(AccountMeta::new_readonly(spl_token::ID, false));
+
+    let (current_commitments_pda, _bump_seed) = derive_pda(newest_tree_number, &program_id);
+    account_metas.push(AccountMeta::new_readonly(current_commitments_pda, false));
+
+    // let accounts = ctx
+    //     .client
+    //     .get_withdraw_account_metas(
+    //         &program_id,
+    //         &ctx.key.key().pubkey(),
+    //         &receiver_token_addr,
+    //         &token_mint_addr,
+    //         tree_number,
+    //         newest_tree_number,
+    //         insert_new_commitment,
+    //     )
+    //     .await
+    //     .unwrap();
+
+    // insert variant bytes
+    serialized_data.insert(0, 2);
+    // Create instruction
+    let instruction = Instruction {
+        program_id,
+        accounts: account_metas,
+        data: serialized_data,
+    };
+
+    let message = Message::new(&[instruction], Some(&&receiver_pubkey));
+    let mut transaction = Transaction::new_unsigned(message);
+
+    transaction.sign(&[&receiver_keypair], recent_blockhash);
+
+    let res = banks_client.process_transaction(transaction).await;
+
+    match res {
+        Ok(_) => println!("Transfer transaction successful"),
+        Err(err) => println!("Transfer transaction failed: {:?}", err),
+    }
 }

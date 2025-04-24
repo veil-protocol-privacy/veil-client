@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
+use crate::hash_left_right;
 use borsh::{BorshDeserialize, BorshSerialize};
 use primitive_types::U256;
-use types::hash_left_right;
 
 // Merkle Tree Sparse for scan and find tree path
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
@@ -63,6 +63,8 @@ impl<const TREE_DEPTH: usize> MerkleTreeSparse<TREE_DEPTH> {
         });
 
         self.rebuild_sparse_tree();
+
+        println!("root: {:?}", self.root());
 
         index_map
     }
@@ -138,7 +140,7 @@ pub fn u256_to_bytes(value: U256) -> [u8; 32] {
 
 #[cfg(test)]
 mod tests {
-    use types::sha256;
+    use crate::sha256;
 
     use super::*;
 

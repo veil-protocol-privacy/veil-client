@@ -508,21 +508,21 @@ impl TxCommands {
 
                 let message = Message::new(&[cu_ix, instruction], Some(&ctx.key.key().pubkey()));
                 let mut transaction = Transaction::new_unsigned(message);
-                let recent_blockhash = ctx.client.client.get_latest_blockhash().await.unwrap();
-                transaction.sign(&[&ctx.key.key()], recent_blockhash);
+                // let recent_blockhash = ctx.client.client.get_latest_blockhash().await.unwrap();
+                // transaction.sign(&[&ctx.key.key()], recent_blockhash);
 
-                let cu = ctx
-                    .client
-                    .client
-                    .simulate_transaction(&transaction)
-                    .await
-                    .unwrap();
+                // let cu = ctx
+                //     .client
+                //     .client
+                //     .simulate_transaction(&transaction)
+                //     .await
+                //     .unwrap();
 
-                if cu.value.err.is_some() {
-                    println!("❌ Transaction failed: {:?}", cu.value.logs);
-                    return;
-                }
-                println!("✅ Transaction successful! {:?}", cu.value);
+                // if cu.value.err.is_some() {
+                //     println!("❌ Transaction failed: {:?}", cu.value.logs);
+                //     return;
+                // }
+                // println!("✅ Transaction successful! {:?}", cu.value);
 
                 // let cu_ix =
                 //     ComputeBudgetInstruction::set_compute_unit_limit(cu as u32 + 100_000u32);

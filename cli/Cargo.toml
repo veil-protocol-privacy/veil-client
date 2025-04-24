@@ -9,10 +9,13 @@ solana-client = { workspace = true }
 solana-program = { workspace = true }
 solana-sdk = { workspace = true }
 spl-token = { workspace = true, features = ["no-entrypoint"] }
-spl-associated-token-account = { workspace = true, features = ["no-entrypoint"] }
+spl-associated-token-account = { workspace = true, features = [
+    "no-entrypoint",
+] }
 
 darksol = { workspace = true }
 types = { path = "../types" }
+# client = { path = "../client" }
 rand = "0.9.0"
 borsh = "1.5.6"
 

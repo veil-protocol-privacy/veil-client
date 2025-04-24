@@ -3,6 +3,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 pub mod curves;
 pub mod utils;
 pub mod utxo;
+pub mod merkle;
 
 pub use curves::*;
 pub use utils::*;
