@@ -1,6 +1,3 @@
-use borsh::{BorshSerialize, BorshDeserialize};
-use veil_types::MerkleTreeSparse;
-
 pub mod solana;
 
 pub const DEPOSIT_EVENT: &str = "deposit_event";

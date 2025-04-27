@@ -11,7 +11,6 @@ use solana_transaction_status::UiTransactionEncoding;
 pub struct SolanaClient {
     client: RpcClient,
     ws_client: PubsubClient,
-    // db: DbStorage,
 }
 
 impl SolanaClient {

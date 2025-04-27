@@ -15,23 +15,21 @@ impl Storage {
         if self.memdb.tree.next_leaf_index > 0 {
             let root = self.memdb.root();
 
-            return Ok(root)
+            return Ok(root);
         }
 
         let leafs = match self.rockdb.get_iterator_for_tree(tree_num) {
             Ok(val) => val,
-            Err(err) => return Err(err)
+            Err(err) => return Err(err),
         };
 
-        let inserted_leaf = leafs.iter().map(| (k,v )| {
-            v.to_vec()
-        }).collect();
+        let inserted_leaf = leafs.iter().map(|(k, v)| v.to_vec()).collect();
 
         let mut new_tree = MerkleTreeSparse::<32>::new(tree_num);
         new_tree.insert(inserted_leaf);
 
         // cache the tree
-        self.memdb = MemDb{
+        self.memdb = MemDb {
             tree: new_tree.clone(),
         };
 
@@ -41,33 +39,32 @@ impl Storage {
     pub fn cache_tree(&mut self, tree_num: u64) -> Result<(), String> {
         let leafs = match self.rockdb.get_iterator_for_tree(tree_num) {
             Ok(val) => val,
-            Err(err) => return Err(err)
+            Err(err) => return Err(err),
         };
 
-        let inserted_leaf = leafs.iter().map(| (_,v )| {
-            v.to_vec()
-        }).collect();
+        let inserted_leaf = leafs.iter().map(|(_, v)| v.to_vec()).collect();
 
         let mut new_tree = MerkleTreeSparse::<32>::new(tree_num);
         new_tree.insert(inserted_leaf);
 
         // cache the tree
-        self.memdb = MemDb{
+        self.memdb = MemDb {
             tree: new_tree.clone(),
         };
 
         Ok(())
     }
 
-    // pub fn insert_leafs(&mut self, tree_num: u64, leafs: Vec<Vec<u8>>) -> Result<(), String> {
-    //     if self.memdb.tree.next_leaf_index > 0 {
-    //         self.memdb.tree.insert(leafs);
-    //     }
+    pub fn insert_leaf(
+        &mut self,
+        tree_num: u64,
+        leaf_index: u64,
+        leaf: Vec<u8>,
+    ) -> Result<(), String> {
+        if self.memdb.tree.next_leaf_index > 0 {
+            self.memdb.tree.insert(vec![leaf.clone()]);
+        }
 
-    //     leafs.iter().for_each(| leaf | {
-    //         self.rockdb.insert_leafs(tree_num, leaf_index, leaf);
-    //     });
-
-    //     Ok(())
-    // }
+        self.rockdb.insert_leafs(tree_num, leaf_index, leaf)
+    }
 }
