@@ -15,11 +15,12 @@ pub fn create_deposit_instructions_data(
     deposit_key: Vec<u8>,
     memo: String,
 ) -> Result<Vec<u8>, String> {
+    let random = generate_random_bytes(32);
     let utxo = UTXO::new(
         spending_key.clone(),
         viewing_key.clone(),
         token_id.to_bytes().to_vec(),
-        generate_random_bytes(32),
+        random.clone(),
         generate_random_bytes(32),
         amount,
         memo,
@@ -27,7 +28,7 @@ pub fn create_deposit_instructions_data(
 
     let pre_commitment =
         PreCommitments::new(amount, token_id.to_bytes().to_vec(), utxo.utxo_public_key());
-    let deposit_ciphertext = utxo.encrypt_for_deposit(viewing_key.clone(), deposit_key.clone());
+    let deposit_ciphertext = utxo.encrypt_for_deposit(random.clone(), deposit_key.clone());
 
     let shield_cipher_text = ShieldCipherText::new(
         deposit_ciphertext.shield_key,
@@ -72,7 +73,7 @@ pub fn create_transfer_instructions_data(
         sum_out += outputs[idx].amount;
 
         let utxo = UTXO::new(
-            spending_key.clone(),
+            vec![], // dont need to input here, as it's private key of the receiver duh :p
             receiver_public_viewing_key.clone(),
             token_id.to_bytes().to_vec(),
             generate_random_bytes(32),

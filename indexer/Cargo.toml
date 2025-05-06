@@ -20,3 +20,4 @@ darksol = { workspace = true }
 borsh = "1.5.7"
 axum = "0.8.3"
 base64 = "0.22.1"
+rand = "0.9.1"

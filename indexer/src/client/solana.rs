@@ -18,10 +18,7 @@ impl SolanaClient {
         let client = RpcClient::new(rpc_url.to_string());
         let ws_client = PubsubClient::new(ws_url).await?;
 
-        Ok(SolanaClient {
-            client,
-            ws_client,
-        })
+        Ok(SolanaClient { client, ws_client })
     }
 
     pub async fn listen_to_program_logs(
@@ -42,7 +39,18 @@ impl SolanaClient {
             .await?;
 
         while let Some(logs_result) = subscription.next().await {
-            tx.send(logs_result.value.logs).await?;
+            let mut program_data: Vec<String> = vec![];
+
+            for v in logs_result.value.logs.clone() {
+                if v.contains("Program data") {
+                    program_data.push(v);
+                }
+            }
+
+            if program_data.len() > 0 {
+                tx.send(program_data).await?;
+            }
+
         }
 
         Ok(())
@@ -66,8 +74,17 @@ impl SolanaClient {
             {
                 // Extract logs from transaction metadata
                 if let Some(meta) = &tx_result.transaction.meta {
-                    if let logs = &meta.log_messages.clone().unwrap() {
-                        tx.send(logs.clone()).await?;
+                    let mut program_data: Vec<String> = vec![];
+                    let logs = meta.log_messages.clone().unwrap();
+
+                    for v in logs {
+                        if v.contains("Program data") {
+                            program_data.push(v);
+                        }
+                    }
+
+                    if program_data.len() > 0 {
+                        tx.send(program_data).await?;
                     }
                 }
             }
@@ -75,16 +92,4 @@ impl SolanaClient {
 
         Ok(())
     }
-
-    // pub fn from_json(&mut self, json_data: Data) -> Self {
-    //     let dencoded = general_purpose::STANDARD.decode(json_data.data).unwrap();
-    //     let raw_data = RawData::try_from_slice(&dencoded).unwrap();
-
-    //     SolanaClient {
-    //         client: self.client,
-    //         ws_client: self.ws_client,
-    //         tree: raw_data.tree_data,
-    //         utxos: raw_data.utxos_data,
-    //     }
-    // }
 }

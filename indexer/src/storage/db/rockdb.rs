@@ -96,23 +96,43 @@ impl<const ENABLE_MERKLE_INDEX: bool> RockDbStorage<ENABLE_MERKLE_INDEX> {
 
     pub fn get_iterator(
         &self,
-    ) -> Result<Vec<UTXO>, String> {
+    ) -> Result<HashMap<u64, UTXO>, String> {
         let utxo_cf = self.db.cf_handle("utxos").unwrap();
 
         let iter = self.db.iterator_cf(&utxo_cf, IteratorMode::End);
-        let mut map: Vec<UTXO> = Vec::new();
+        let mut map: HashMap<u64, UTXO> = HashMap::new();
 
-        for (_, value) in iter.filter_map(Result::ok) {
+        for (key, value) in iter.filter_map(Result::ok) {
             if Some(value.clone()).is_some() {
                 let utxo = match UTXO::try_from_slice(&value) {
                     Ok(val) => val,
                     Err(_) => continue,
                 };
 
-                map.push(utxo);
+                let key_str = match String::from_utf8(key.to_vec()) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        return Err(e.to_string())
+                    }
+                };
+                let index = match get_index_from_key(key_str) {
+                    Ok(idx) => idx,
+                    Err(e) => {
+                        return Err(e.to_string())
+                    },
+                };
+
+                map.insert(index, utxo);
             }
         }
         Ok(map)
+    }
+
+    pub fn spent_leaf(&self, tree_number: u64, indexes: Vec<u64>) -> Result<(), String> {
+        let utxo_cf = self.db.cf_handle("utxos").unwrap();
+
+        
+        Ok(())
     }
 }
 
@@ -250,7 +270,7 @@ impl StorageWrapper {
         }
     }
 
-    pub fn get_iterator(&self) -> Result<Vec<UTXO>, String>  {
+    pub fn get_iterator(&self) -> Result<HashMap<u64, UTXO>, String>  {
         match self {
             StorageWrapper::WithMerkle(s) => s.get_iterator(),
             StorageWrapper::WithoutMerkle(s) => s.get_iterator(),
@@ -263,3 +283,23 @@ pub fn get_key(tree_number: u64, leaf_index: u64) -> Vec<u8> {
         .as_bytes()
         .to_vec();
 }
+
+pub fn get_index_from_key(key: String) -> Result<u64, String> {
+    let parts: Vec<&str> = key.split("-").collect();
+    if parts.len() != 2 {
+        return Err(format!("invalid key format"));
+    }
+
+    let index_strs: Vec<&str> = parts[1].split("leaf").collect();
+    if index_strs.len() != 1 {
+        return Err(format!("invalid key format"));
+    };
+
+    match index_strs[0].parse() {
+        Ok(idx) => return Ok(idx),
+        Err(e) => {
+            return Err(format!("not a valid u64"))
+        }
+    };
+}
+

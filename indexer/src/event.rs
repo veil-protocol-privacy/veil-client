@@ -12,11 +12,11 @@ pub struct Event {
 
 impl Event {
     pub fn parse_event(log: &str) -> Option<Event> {
-        let parts: Vec<&str> = log.split(", ").collect();
-        if parts.len() == 2 {
+        let parts: Vec<&str> = log.split(" ").collect();
+        if parts.len() == 4 {
             return Some(Event {
-                event_type: parts[0].to_string(),
-                value: parts[1].to_string(),
+                event_type: parts[2].to_string(),
+                value: parts[3].to_string(),
             });
         }
         None
@@ -27,7 +27,7 @@ pub fn decrypt_transaction_cipher_text(
     key_path: String,
     value: Vec<u8>,
 ) -> Result<(Vec<UTXO>, Vec<Vec<u8>>, u64, u64), String> {
-    let (viewing_key, spending_key, _deposit_key) = match get_key_from_file(key_path) {
+    let (spending_key, viewing_key, _deposit_key) = match get_key_from_file(key_path) {
         Ok(data) => data,
         Err(err) => return Err(err.to_string()),
     };
@@ -77,7 +77,7 @@ pub fn decrypt_deposit_cipher_text(
     key_path: String,
     value: Vec<u8>,
 ) -> Result<(UTXO, u64, u64), String> {
-    let (viewing_key, spending_key, _deposit_key) = match get_key_from_file(key_path) {
+    let (spending_key, viewing_key, _deposit_key) = match get_key_from_file(key_path) {
         Ok(data) => data,
         Err(err) => return Err(err.to_string()),
     };

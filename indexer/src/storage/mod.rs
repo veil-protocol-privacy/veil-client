@@ -1,6 +1,6 @@
 pub mod db;
 
-const DEFAULT_PATH: &str = "../../data/rockdb";
+const DEFAULT_PATH: &str = "./../data/rockdb";
 
 pub struct DbOptions {
     pub path: String,

@@ -23,7 +23,7 @@ impl Storage {
             Err(err) => return Err(err),
         };
 
-        let inserted_leaf = leafs.iter().map(|(k, v)| v.to_vec()).collect();
+        let inserted_leaf = leafs.iter().map(|(_, v)| v.to_vec()).collect();
 
         let mut new_tree = MerkleTreeSparse::<32>::new(tree_num);
         new_tree.insert(inserted_leaf);
