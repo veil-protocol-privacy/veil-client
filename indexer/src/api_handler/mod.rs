@@ -16,7 +16,7 @@ pub fn get_spentable_utxos(state: Arc<AppState>, tree_number: u64, token_id: Vec
             let seed = tree_number.to_le_bytes();
             let (commitment_pda, _) = Pubkey::try_find_program_address(&[&seed], &state.program_id).unwrap();
             let rpc_client = RpcClient::new_with_commitment(
-                String::from("http://127.0.0.1:8899"),
+                state.rpc_url.clone(),
                 CommitmentConfig::confirmed(),
             );  
             let acc_data = match rpc_client.get_account_data(&commitment_pda) {

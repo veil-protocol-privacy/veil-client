@@ -11,7 +11,7 @@ pub async fn deposit(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<DepositReq>,
 ) -> impl IntoResponse {
-    let random = generate_random_bytes(32);
+    let random: Vec<u8> = generate_random_bytes(32);
 
     let utxo = UTXO::new(
         state.key.sk.to_vec().clone(),

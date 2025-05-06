@@ -127,13 +127,6 @@ impl<const ENABLE_MERKLE_INDEX: bool> RockDbStorage<ENABLE_MERKLE_INDEX> {
         }
         Ok(map)
     }
-
-    pub fn spent_leaf(&self, tree_number: u64, indexes: Vec<u64>) -> Result<(), String> {
-        let utxo_cf = self.db.cf_handle("utxos").unwrap();
-
-        
-        Ok(())
-    }
 }
 
 impl RockDbStorage<true> {
@@ -291,14 +284,14 @@ pub fn get_index_from_key(key: String) -> Result<u64, String> {
     }
 
     let index_strs: Vec<&str> = parts[1].split("leaf").collect();
-    if index_strs.len() != 1 {
+    if index_strs.len() != 2 {
         return Err(format!("invalid key format"));
     };
 
-    match index_strs[0].parse() {
+    match index_strs[1].parse() {
         Ok(idx) => return Ok(idx),
         Err(e) => {
-            return Err(format!("not a valid u64"))
+            return Err(format!("not a valid u64: {}", e.to_string()))
         }
     };
 }

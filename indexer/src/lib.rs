@@ -18,6 +18,7 @@ pub struct AppState{
     pub db: Arc<RwLock<StorageWrapper>>,
     pub program_id: Pubkey,
     pub key: KeyJson,
+    pub rpc_url: String,
 }
 
 #[derive(Serialize)]
@@ -28,6 +29,11 @@ pub struct RootResp {
 #[derive(Serialize)]
 pub struct LeafsResp {
     pub utxos: HashMap<u64, UTXO>
+}
+
+#[derive(Serialize)]
+pub struct BalancesResp {
+    pub balances: HashMap<String, u64>
 }
 
 #[derive(Serialize, Deserialize)]

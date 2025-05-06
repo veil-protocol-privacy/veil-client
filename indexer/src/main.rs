@@ -76,7 +76,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
 
     // Wrap in shared state
-    let state = AppState { db, program_id, key };
+    let state = AppState { db, program_id, key, rpc_url: RPC_URL.to_string() };
     let worker_state = state.clone();
 
     // Spawn a task for indexer api
