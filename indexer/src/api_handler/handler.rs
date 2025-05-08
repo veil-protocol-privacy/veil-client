@@ -7,7 +7,7 @@ use darksol::{merkle::CommitmentsAccount, utils::serialize::BorshDeserializeWith
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{commitment_config::CommitmentConfig, pubkey::Pubkey};
 use std::{collections::HashMap, sync::Arc};
-use veil_types::{MerkleTreeSparse, UTXO};
+use veil_types::MerkleTreeSparse;
 
 pub async fn roots(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let db = state.db.read().unwrap();
@@ -24,7 +24,7 @@ pub async fn roots(State(state): State<Arc<AppState>>) -> impl IntoResponse {
 
     let inserted_leaf = leafs.iter().map(|(_, v)| v.to_vec()).collect();
 
-    let mut new_tree = MerkleTreeSparse::<32>::new(0);
+    let mut new_tree = MerkleTreeSparse::<16>::new(0);
     new_tree.insert(inserted_leaf);
 
     Json(RootResp {
