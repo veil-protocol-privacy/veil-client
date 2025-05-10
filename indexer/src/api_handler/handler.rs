@@ -24,7 +24,7 @@ pub async fn roots(State(state): State<Arc<AppState>>) -> impl IntoResponse {
 
     let inserted_leaf = leafs.iter().map(|(_, v)| v.to_vec()).collect();
 
-    let mut new_tree = MerkleTreeSparse::<32>::new(0);
+    let mut new_tree = MerkleTreeSparse::<16>::new(0);
     new_tree.insert(inserted_leaf);
 
     Json(RootResp {

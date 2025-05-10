@@ -9,7 +9,7 @@ solana-client = { workspace = true }
 solana-program = { workspace = true }
 solana-sdk = { workspace = true }
 spl-token = { workspace = true, features = ["no-entrypoint"] }
-spl-associated-token-account = { workspace = true }
+spl-associated-token-account = { workspace = true, features = ["no-entrypoint"] }
 
 darksol = { workspace = true }
 veil-types = { workspace = true }

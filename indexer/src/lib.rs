@@ -64,6 +64,8 @@ pub struct TransferReq {
 
 #[derive(Serialize, Deserialize)]
 pub struct WitdrawReq {
+    pub receiver_viewing_pubkey: Vec<u8>,
+    pub receiver_master_pubkey: Vec<u8>,
     pub amount: u64,
     pub token_id: Vec<u8>,
     pub tree_number: u64,
