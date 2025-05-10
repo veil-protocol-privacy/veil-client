@@ -19,10 +19,10 @@ use tokio::{net::TcpListener, sync::mpsc};
 // const RPC_URL: &str = "https://api.mainnet-beta.solana.com";
 // const WS_URL: &str = "wss://api.mainnet-beta.solana.com/";
 
-const RPC_URL: &str = "http://127.0.0.1:8899";
+const RPC_URL: &str = "http://127.0.0.1:8899"; 
 const WS_URL: &str = "ws://127.0.0.1:8900/";
 const KEY_PATH: &str = "data/output.txt";
-pub const PROGRAM_ID: &str = "BvRRcGvHnbDkJoNTyZbiNVnowBuy9e7XwqFtR4ZQ8ZxY";
+pub const PROGRAM_ID: &str = "FQXXUySvdrBWWnCsGh6vZa2benHVtvntnm6VXbFdgpV2";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -153,6 +153,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                     continue;
                                 }
                             };
+
+                        println!("hey {}", utxos.len());
 
                         let mut db = match worker_state.db.write() {
                             Ok(data) => data,

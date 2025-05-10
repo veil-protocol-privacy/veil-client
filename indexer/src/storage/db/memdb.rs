@@ -1,9 +1,10 @@
 
 use std::collections::HashMap;
-use veil_types::MerkleTreeSparse;
+use veil_types::{MerkleTreeSparse, UTXO};
 
 pub struct MemDb {
     pub tree: MerkleTreeSparse<32>,
+    pub utxos: HashMap<u64, UTXO>
 }
 
 impl MemDb {
@@ -12,6 +13,7 @@ impl MemDb {
 
         MemDb {
             tree,
+            utxos: HashMap::new()
         }
     }
 
@@ -23,10 +25,10 @@ impl MemDb {
         self.tree.root()
     }
 
-    pub fn import_tree(&mut self, tree_num: u64, leafs: Vec<Vec<u8>>) -> Self {
+    pub fn import_tree(&mut self, tree_num: u64, leafs: Vec<Vec<u8>>, utxos: HashMap<u64, UTXO>) -> Self {
         let mut emtpy_tree = MerkleTreeSparse::new(tree_num);   
         emtpy_tree.insert(leafs);
 
-        MemDb { tree: emtpy_tree }
+        MemDb { tree: emtpy_tree, utxos }
     }
 }

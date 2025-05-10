@@ -7,7 +7,7 @@ use darksol::{merkle::CommitmentsAccount, utils::serialize::BorshDeserializeWith
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{commitment_config::CommitmentConfig, pubkey::Pubkey};
 use std::{collections::HashMap, sync::Arc};
-use veil_types::{MerkleTreeSparse, UTXO};
+use veil_types::MerkleTreeSparse;
 
 pub async fn roots(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let db = state.db.read().unwrap();
@@ -86,9 +86,10 @@ pub async fn unspent_balances(
                     }
                 };
             let mut unspent: HashMap<String, u64> = HashMap::new();
+            println!("{}", commitment_account.next_leaf_index);
 
-            for (_, utxo) in utxos {
-                if !commitment_account.check_nullifier(&utxo.utxo_hash()) {
+            for (idx, utxo) in utxos {
+                if !commitment_account.check_nullifier(&utxo.nullifier(idx)) {
                     let pubkey_array: [u8; 32] = match utxo.token_id().try_into() {
                         Ok(pk) => pk,
                         Err(_) => {

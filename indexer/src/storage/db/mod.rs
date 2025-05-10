@@ -28,9 +28,15 @@ impl Storage {
         let mut new_tree = MerkleTreeSparse::<32>::new(tree_num);
         new_tree.insert(inserted_leaf);
 
+        let utxos = match self.rockdb.get_iterator() {
+            Ok(val) => val,
+            Err(err) => return Err(err),
+        };
+
         // cache the tree
         self.memdb = MemDb {
             tree: new_tree.clone(),
+            utxos,
         };
 
         Ok(new_tree.root())
@@ -46,10 +52,16 @@ impl Storage {
 
         let mut new_tree = MerkleTreeSparse::<32>::new(tree_num);
         new_tree.insert(inserted_leaf);
+        
+        let utxos = match self.rockdb.get_iterator() {
+            Ok(val) => val,
+            Err(err) => return Err(err),
+        };
 
         // cache the tree
         self.memdb = MemDb {
             tree: new_tree.clone(),
+            utxos
         };
 
         Ok(())

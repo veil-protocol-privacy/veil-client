@@ -42,6 +42,7 @@ impl SolanaClient {
             let mut program_data: Vec<String> = vec![];
 
             for v in logs_result.value.logs.clone() {
+                println!("{}", v);
                 if v.contains("Program data") {
                     program_data.push(v);
                 }

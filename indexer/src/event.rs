@@ -36,6 +36,11 @@ pub fn decrypt_transaction_cipher_text(
         Err(err) => return Err(err.to_string()),
     };
 
+    println!("1 {}", event.commitment_cipher_text.len());
+    println!("2 {}", event.commitments.len());
+    println!("3 {}", event.start_position);
+
+
     if event.commitment_cipher_text.len() != event.commitments.len() {
         return Err("commitments len and cipher text len must be equal".to_string());
     }
@@ -62,10 +67,10 @@ pub fn decrypt_transaction_cipher_text(
             }
         };
 
-        if utxo.utxo_hash() != event.commitments[idx] {
-            println!("inserted commitments non valid");
-            continue;
-        }
+        // if utxo.utxo_hash() != event.commitments[idx] {
+        //     println!("inserted commitments non valid");
+        //     continue;
+        // }
 
         utxos.push(utxo);
     }
@@ -85,6 +90,8 @@ pub fn decrypt_deposit_cipher_text(
         Ok(data) => data,
         Err(err) => return Err(err.to_string()),
     };
+
+    println!("4 {}", event.start_position);
 
     let text = event.shield_cipher_text;
     let utxo = match UTXO::decrypt_for_deposit(
